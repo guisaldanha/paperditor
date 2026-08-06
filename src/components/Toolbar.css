@@ -1,0 +1,408 @@
+/* ═══════════════════════════════════════════════════════
+   Ribbon Toolbar — estilo Microsoft Word
+   ═══════════════════════════════════════════════════════ */
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-toolbar);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  -webkit-user-select: none;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Tab strip ─────────────────────────────────────────── */
+.toolbar-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 6px 12px 0;
+  background: var(--bg-tab-strip);
+  border-bottom: 2px solid var(--accent-color);
+}
+
+.toolbar-tab {
+  padding: 5px 18px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  margin-bottom: -2px;
+  transition: color 0.15s, background 0.15s;
+  outline: none;
+}
+
+.toolbar-tab:hover {
+  color: var(--text-color);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.toolbar-tab.active {
+  background: var(--bg-toolbar);
+  border-color: var(--accent-color);
+  border-bottom-color: var(--bg-toolbar);
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+/* ── Ribbon content row ────────────────────────────────── */
+.toolbar-ribbon {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  padding: 4px 10px 6px;
+  min-height: 60px;
+  gap: 0;
+}
+
+.toolbar-ribbon-left {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.toolbar-ribbon-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border-color);
+  margin-left: 4px;
+}
+
+/* ── Groups ────────────────────────────────────────────── */
+.toolbar-group-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 8px 0;
+  border-right: 1px solid var(--border-color);
+  gap: 2px;
+}
+
+.toolbar-group-wrap:first-child {
+  padding-left: 2px;
+}
+
+.toolbar-group-wrap:last-child {
+  border-right: none;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.toolbar-group-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  letter-spacing: 0.15px;
+  padding-bottom: 1px;
+}
+
+/* ── Buttons ───────────────────────────────────────────── */
+.toolbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-color);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+  outline: none;
+  white-space: nowrap;
+}
+
+.toolbar-btn:hover {
+  background: var(--bg-button-hover);
+  border-color: var(--border-color);
+}
+
+.toolbar-btn.active {
+  background: var(--accent-light);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.32;
+  cursor: default;
+  pointer-events: none;
+}
+
+.toolbar-btn.dirty {
+  border-color: #e8a428;
+  box-shadow: 0 0 0 2px rgba(232, 164, 40, 0.2);
+}
+
+.toolbar-btn.btn-danger {
+  color: #c0392b;
+}
+
+.toolbar-btn.btn-danger:hover {
+  background: rgba(192, 57, 43, 0.1);
+  border-color: #c0392b;
+}
+
+/* ── Text style labels ────────────────────────────────── */
+.lbl-bold   { font-weight: 800; font-size: 14px; font-family: serif; }
+.lbl-italic { font-style: italic; font-size: 14px; font-family: serif; }
+.lbl-strike { text-decoration: line-through; font-size: 13px; }
+
+.highlight-badge {
+  background: #ffd600;
+  color: #1a1a1a;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.code-mono {
+  font-family: 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  letter-spacing: -0.5px;
+}
+
+.btn-sup { font-size: 9px; vertical-align: super; }
+.btn-sub { font-size: 9px; vertical-align: sub; }
+.btn-label-sm { font-size: 12px; }
+
+/* ── Heading select ───────────────────────────────────── */
+.heading-select {
+  height: 28px;
+  min-width: 88px;
+  padding: 0 6px;
+  background: var(--bg-button);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-color);
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236a737d'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  padding-right: 22px;
+}
+
+.heading-select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.heading-select option {
+  background: var(--bg-editor);
+  color: var(--text-color);
+}
+
+/* ── Popover ──────────────────────────────────────────── */
+.toolbar-popover-container {
+  position: relative;
+}
+
+.toolbar-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  padding: 12px;
+  background: var(--bg-editor);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+  min-width: 220px;
+}
+
+.toolbar-popover--right {
+  left: auto;
+  right: 0;
+}
+
+.toolbar-popover label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.toolbar-popover input {
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-color);
+  font-size: 13px;
+  outline: none;
+}
+
+.toolbar-popover input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.toolbar-popover textarea {
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-color);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  line-height: 1.5;
+}
+
+.toolbar-popover textarea:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.popover-row {
+  display: flex;
+  gap: 6px;
+}
+
+.popover-btn {
+  padding: 6px 14px;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.popover-btn:hover {
+  opacity: 0.88;
+}
+
+.popover-btn.remove-btn {
+  background: #c0392b;
+}
+
+/* ── Right-side controls ──────────────────────────────── */
+.toggle-btn {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 76px;
+  gap: 5px;
+}
+
+.toolbar-filename {
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 6px;
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width: 920px) {
+  .toolbar-group-label {
+    display: none;
+  }
+
+  .toolbar-group-wrap {
+    padding: 2px 4px 0;
+  }
+}
+
+/* ── Icon / Emoji picker ──────────────────────────────── */
+.toolbar-popover--icons {
+  min-width: 280px;
+  max-width: 280px;
+  padding: 10px;
+  gap: 6px;
+}
+
+.icon-cat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.icon-cat-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 4px;
+  line-height: 1;
+  transition: background 0.1s, border-color 0.1s;
+  outline: none;
+}
+
+.icon-cat-btn:hover {
+  background: var(--bg-button-hover);
+  border-color: var(--border-color);
+}
+
+.icon-cat-btn.active {
+  background: var(--accent-light);
+  border-color: var(--accent-color);
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  max-height: 210px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+.icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 2px;
+  line-height: 1;
+  text-align: center;
+  transition: background 0.1s, border-color 0.1s;
+  outline: none;
+}
+
+.icon-btn:hover {
+  background: var(--bg-button-hover);
+  border-color: var(--border-color);
+}

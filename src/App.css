@@ -1,0 +1,309 @@
+:root {
+  --bg-primary: #ffffff;
+  --bg-editor: #ffffff;
+  --bg-toolbar: #f3f3f3;
+  --bg-tab-strip: #e6e9ed;
+  --bg-button: #e8e8e8;
+  --bg-button-hover: #dde3ea;
+  --bg-code: #f4f4f4;
+  --text-color: #24292e;
+  --text-muted: #6a737d;
+  --border-color: #d0d7de;
+  --accent-color: #0366d6;
+  --accent-light: rgba(3, 102, 214, 0.1);
+}
+
+[data-theme='dark'] {
+  --bg-primary: #1e1e1e;
+  --bg-editor: #1e1e1e;
+  --bg-toolbar: #2d2d2d;
+  --bg-tab-strip: #1e1e1e;
+  --bg-button: #3c3c3c;
+  --bg-button-hover: #4a4a4a;
+  --bg-code: #2d2d2d;
+  --text-color: #e1e4e8;
+  --text-muted: #8b949e;
+  --border-color: #30363d;
+  --accent-color: #58a6ff;
+  --accent-light: rgba(88, 166, 255, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-color);
+  line-height: 1.5;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  background: var(--bg-editor);
+  display: flex;
+}
+
+.tiptap-editor {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+  min-height: calc(100vh - 60px);
+}
+
+.tiptap-editor .tiptap {
+  outline: none;
+  min-height: 400px;
+}
+
+.tiptap-editor .ProseMirror {
+  outline: none;
+  min-height: 400px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  /* Impede que qualquer elemento filho cause rolagem horizontal */
+  overflow-x: hidden;
+}
+
+/* Elementos que podem ultrapassar o container — forçar largura máxima */
+.ProseMirror img,
+.ProseMirror video,
+.ProseMirror iframe,
+.ProseMirror embed,
+.ProseMirror object {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Tabelas largas: rolar internamente em vez de vazar */
+.ProseMirror table {
+  max-width: 100%;
+}
+
+.ProseMirror .tableWrapper {
+  overflow-x: auto;
+}
+
+.ProseMirror p {
+  margin: 1em 0;
+}
+
+/* Cursor de mãozinha em links quando Ctrl está pressionado */
+.ctrl-held .ProseMirror a[href] {
+  cursor: pointer;
+}
+
+/* Cursor de mãozinha em notas de rodapé (<sup>N</sup>) quando Ctrl está pressionado */
+.ctrl-held .ProseMirror sup {
+  cursor: pointer;
+}
+
+.ProseMirror h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin: 0.67em 0;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin: 0.83em 0;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ProseMirror h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 1em 0;
+}
+
+.ProseMirror code {
+  background: var(--bg-code);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror pre {
+  background: var(--bg-code);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.ProseMirror pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid var(--accent-color);
+  margin: 1em 0;
+  padding-left: 16px;
+  color: var(--text-muted);
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 24px;
+}
+
+.ProseMirror li {
+  margin: 4px 0;
+}
+
+.ProseMirror li > input[type='checkbox'] {
+  margin-right: 8px;
+}
+
+.ProseMirror a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.ProseMirror a:hover {
+  text-decoration: underline;
+}
+
+.ProseMirror hr {
+  border: none;
+  border-top: 2px solid var(--border-color);
+  margin: 2em 0;
+}
+
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+}
+
+.ProseMirror th,
+.ProseMirror td {
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  text-align: left;
+  position: relative;
+}
+
+.ProseMirror th {
+  background: var(--bg-toolbar);
+  font-weight: 600;
+}
+
+.ProseMirror .selectedCell {
+  background: rgba(200, 200, 255, 0.4);
+}
+
+.ProseMirror .footnote-ref {
+  vertical-align: super;
+  font-size: 0.75em;
+  color: var(--accent-color);
+  cursor: pointer;
+}
+
+.ProseMirror .footnotes-list {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
+.ProseMirror .footnotes-list li {
+  margin: 0.5em 0;
+}
+
+.ProseMirror .search-match {
+  background: rgba(255, 212, 0, 0.45);
+  border-radius: 2px;
+}
+
+.ProseMirror .search-match--active {
+  background: rgba(255, 140, 0, 0.65);
+}
+
+.ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-muted);
+  pointer-events: none;
+  height: 0;
+}
+
+.markdown-source {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.markdown-source__editor-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.markdown-source textarea {
+  width: 100%;
+  flex: 1;
+  padding: 16px;
+  font-family: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--bg-editor);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  resize: none;
+}
+
+.markdown-source textarea:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+/* Destaque do match ativo no modo Source — a seleção nativa do textarea só é
+   visível quando ele tem foco, e não queremos roubar o foco do input de busca,
+   então desenhamos o texto do match ativo com este overlay (posição/tamanho
+   medidos via mirror div, então acompanha o texto de verdade, não a linha inteira). */
+.find-text-highlight {
+  position: absolute;
+  background: rgba(255, 140, 0, 0.55);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@media print {
+  .toolbar {
+    display: none !important;
+  }
+
+  .main-content {
+    padding: 0;
+  }
+
+  .tiptap-editor {
+    max-width: 100%;
+    padding: 0;
+  }
+}
