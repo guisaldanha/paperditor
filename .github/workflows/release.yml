@@ -38,8 +38,12 @@ jobs:
         run: npm ci
 
       - name: Set package version from tag
+        id: version
         shell: bash
-        run: npm pkg set version="${GITHUB_REF_NAME#v}"
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm pkg set version="$VERSION"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Build installer
         run: npm run build
@@ -49,10 +53,18 @@ jobs:
         with:
           name: paperditor-${{ matrix.name }}
           if-no-files-found: ignore
+          # Caminho sem wildcard no segmento da versão (electron-builder gera em
+          # release/<version>/): com wildcard (release/*/*.exe), o upload-artifact
+          # preserva o "release/<version>/" dentro do artefato (raiz calculada só até
+          # o primeiro *), então o merge-multiple no download job juntava os 3
+          # instaladores dentro de uma ÚNICA pasta "<version>/" — daí o
+          # "release-assets/<version>" virar um diretório, não um arquivo, e o
+          # `gh release create ... release-assets/*` falhar tentando subir a pasta
+          # inteira como se fosse um asset.
           path: |
-            release/*/*.exe
-            release/*/*.dmg
-            release/*/*.AppImage
+            release/${{ steps.version.outputs.value }}/*.exe
+            release/${{ steps.version.outputs.value }}/*.dmg
+            release/${{ steps.version.outputs.value }}/*.AppImage
 
   release:
     name: Create GitHub Release
