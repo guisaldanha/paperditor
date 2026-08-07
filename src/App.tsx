@@ -241,8 +241,15 @@ function App() {
       if (!suppressDirty.current) setIsDirty(true);
     },
     onCreate: () => {
-      // Libera o suppressor após a montagem inicial para não bloquear edições do usuário
-      suppressDirty.current = false;
+      // Libera o suppressor só no próximo tick (macrotask), depois que qualquer onUpdate
+      // disparado pela própria definição do conteúdo inicial já tiver disparado. Limpar
+      // direto aqui dependia da ordem onCreate-vs-onUpdate interna do editor, que não é
+      // garantida (varia entre versões) — se o onUpdate do conteúdo inicial disparar
+      // DEPOIS do onCreate, o documento nasce marcado como alterado sem o usuário ter
+      // feito nada.
+      setTimeout(() => {
+        suppressDirty.current = false;
+      }, 0);
     },
   });
 
