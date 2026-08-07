@@ -22,8 +22,8 @@ interface Props {
   editor: Editor | null;
   isMarkdownMode: boolean;
   markdownContent: string;
-  textareaRef: RefObject<HTMLTextAreaElement>;
-  sourceWrapRef: RefObject<HTMLDivElement>;
+  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  sourceWrapRef: RefObject<HTMLDivElement | null>;
   onClose: () => void;
 }
 
