@@ -45,6 +45,11 @@
           "x64"
         ]
       }
+      // Depois de reservar o nome no Partner Center e preencher identityName/publisher
+      // abaixo com os valores reais, adicione aqui: { "target": "appx", "arch": ["x64"] }
+      // Deixado de fora por enquanto de propósito — com identityName/publisher placeholder
+      // isso quebraria o build da Microsoft Store sem quebrar o NSIS, mas não faz sentido
+      // gerar um pacote MSIX que não pode ser submetido ainda.
     ],
     "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
   },
@@ -53,6 +58,17 @@
     "perMachine": false,
     "allowToChangeInstallationDirectory": true,
     "deleteAppDataOnUninstall": false
+  },
+  // Config da Microsoft Store (MSIX/AppX). identityName e publisher vêm do Partner Center
+  // depois de reservar o nome do app — são específicos da sua conta, não dá pra usar
+  // qualquer valor. Ícones já gerados em build/appx/ (a partir de public/icon.png).
+  // @see https://www.electron.build/docs/appx/
+  "appx": {
+    "applicationId": "Paperditor",
+    "identityName": "TODO-preencher-apos-reservar-nome-no-Partner-Center",
+    "publisher": "TODO-preencher-com-o-Publisher-CN-do-Partner-Center",
+    "publisherDisplayName": "Guilherme Saldanha",
+    "displayName": "Paperditor"
   },
   "linux": {
     "target": [
