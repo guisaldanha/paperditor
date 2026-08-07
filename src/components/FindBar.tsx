@@ -111,6 +111,26 @@ function measureMatchRects(textarea: HTMLTextAreaElement, text: string, match: S
   return rects;
 }
 
+// editor.commands.scrollIntoView() resolve através de EditorView.scrollToSelection(),
+// que lê a seleção REAL do navegador (domSelectionRange().focusNode) para decidir de
+// onde rolar — e só sincroniza essa seleção quando o editor tem foco (editorOwnsSelection
+// -> view.hasFocus()). Como a barra de busca mantém o foco no próprio <input> (para não
+// roubar o foco do editor durante a navegação entre matches), o editor nunca "possui" a
+// seleção e aquele mecanismo vira um no-op silencioso — por isso replicamos aqui o mesmo
+// cálculo de borda (coordsAtPos não depende de foco), rolando a página diretamente.
+function scrollMatchIntoView(editor: Editor, match: SearchMatch) {
+  const coords = editor.view.coordsAtPos(match.from);
+  const toolbarHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-height')) || 0;
+  const margin = 8;
+  const topEdge = toolbarHeight + margin;
+  const bottomEdge = window.innerHeight - margin;
+  if (coords.top < topEdge) {
+    window.scrollBy({ top: coords.top - topEdge, behavior: 'smooth' });
+  } else if (coords.bottom > bottomEdge) {
+    window.scrollBy({ top: coords.bottom - bottomEdge, behavior: 'smooth' });
+  }
+}
+
 const FindBar = forwardRef(function FindBar(
   { editor, isMarkdownMode, markdownContent, textareaRef, sourceWrapRef, onClose }: Props,
   ref: ForwardedRef<FindBarHandle>
@@ -205,7 +225,7 @@ const FindBar = forwardRef(function FindBar(
       }
       setSearchMatches(editor, matches, activeIndex);
       editor.commands.setTextSelection(match);
-      editor.commands.scrollIntoView();
+      scrollMatchIntoView(editor, match);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIndex, matches, isMarkdownMode]);
