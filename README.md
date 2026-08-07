@@ -7,16 +7,15 @@
   <p>
     <img src="https://img.shields.io/badge/Windows-supported-blue?logo=windows" alt="Windows: supported" />
     <img src="https://img.shields.io/badge/macOS-experimental-lightgrey?logo=apple" alt="macOS: experimental" />
-    <img src="https://img.shields.io/badge/Linux-experimental-lightgrey?logo=linux" alt="Linux: experimental" />
+    <img src="https://img.shields.io/badge/Linux-experimental-lightgrey?logo=linux" alt="Linux: experimental" /><br>
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
     <img src="https://img.shields.io/github/v/release/guisaldanha/paperditor?color=orange" alt="Version" />
-    <img src="https://img.shields.io/badge/built%20with-Electron%20%2B%20React-61DAFB?logo=react" alt="Built with Electron + React" />
   </p>
 
   <br/>
 
   <a href="https://github.com/guisaldanha/paperditor/releases/latest">
-    <img src="public/download.png" alt="Download for Windows" height="60" />
+    <img src="public/download.png" alt="Download for Windows" height="150" />
   </a>
 
   <br/><br/>
@@ -113,7 +112,7 @@ Download the latest Windows installer from the [Releases page](https://github.co
 
 <div align="center">
   <a href="https://github.com/guisaldanha/paperditor/releases/latest">
-    <img src="public/download.png" alt="Download for Windows" height="60" />
+    <img src="public/download.png" alt="Download for Windows" height="150" />
   </a>
 </div>
 
@@ -166,6 +165,21 @@ None of the installers are code-signed (no paid certificate), so your OS will wa
 | Office Export | [html-to-docx](https://www.npmjs.com/package/html-to-docx) |
 | Bundler | [Vite](https://vitejs.dev/) |
 | Packaging | [electron-builder](https://www.electron.build/) |
+
+---
+
+## 🛡️ Security
+
+> **Don't trust. Verify.**
+
+Transparency is part of this project.
+
+Before running any software obtained from the Internet, it's good practice to perform an independent audit of the source code. This repository encourages that practice.
+
+[![Audit with ChatGPT](https://img.shields.io/badge/Audit-with%20ChatGPT-10A37F?style=for-the-badge&logo=openai&logoColor=white)](https://chatgpt.com/?q=Analyze%20this%20GitHub%20repository%3A%20https%3A%2F%2Fgithub.com%2Fguisaldanha%2Fpaperditor%0A%0APerform%20a%20complete%20security%20audit.%20Analyze%20all%20the%20source%20code%2C%20dependencies%2C%20scripts%2C%20GitHub%20Actions%20workflows%2C%20and%20configuration%20files.%20Identify%20any%20potentially%20malicious%20behavior%2C%20such%20as%20credential%20theft%2C%20hidden%20data%20exfiltration%2C%20remote%20code%20execution%2C%20automatic%20downloads%2C%20cryptocurrency%20mining%2C%20suspicious%20dependencies%2C%20or%20any%20other%20security%20risk.%20Present%20your%20findings%2C%20explain%20the%20identified%20risks%2C%20and%20state%20whether%20you%20consider%20it%20safe%20to%20run%20this%20project.)
+[![Audit with Claude](https://img.shields.io/badge/Audit-with%20Claude-D97757?style=for-the-badge&logo=claude&logoColor=white)](https://claude.ai/new?q=Analyze%20this%20GitHub%20repository%3A%20https%3A%2F%2Fgithub.com%2Fguisaldanha%2Fpaperditor%0A%0APerform%20a%20complete%20security%20audit.%20Analyze%20all%20the%20source%20code%2C%20dependencies%2C%20scripts%2C%20GitHub%20Actions%20workflows%2C%20and%20configuration%20files.%20Identify%20any%20potentially%20malicious%20behavior%2C%20such%20as%20credential%20theft%2C%20hidden%20data%20exfiltration%2C%20remote%20code%20execution%2C%20automatic%20downloads%2C%20cryptocurrency%20mining%2C%20suspicious%20dependencies%2C%20or%20any%20other%20security%20risk.%20Present%20your%20findings%2C%20explain%20the%20identified%20risks%2C%20and%20state%20whether%20you%20consider%20it%20safe%20to%20run%20this%20project.)
+
+<sub>💡 Trust in software should come from the ability to verify how it works, not just the reputation of whoever built it.</sub>
 
 ---
 

@@ -35,8 +35,20 @@ function Toc({ editor, slugify }: TocProps) {
     return () => { editor.off('update', update); };
   }, [editor, slugify]);
 
+  // Não usa document.getElementById: o atributo id só é (re)atribuído aos headings
+  // no listener de 'update' do editor (App.tsx), que não dispara em modo Reading
+  // (somente-leitura) — então, ao entrar direto nessa aba, os ids podem nunca ter
+  // sido escritos no DOM recém-montado. Busca pelo texto slugificado diretamente,
+  // igual à navegação de links internos (#heading) em handleEditorClick.
   const handleClick = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    for (const h of document.querySelectorAll(
+      '.reading-view .ProseMirror h1, .reading-view .ProseMirror h2, .reading-view .ProseMirror h3, .reading-view .ProseMirror h4, .reading-view .ProseMirror h5, .reading-view .ProseMirror h6'
+    )) {
+      if (slugify(h.textContent ?? '') === id) {
+        h.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        break;
+      }
+    }
   };
 
   return (

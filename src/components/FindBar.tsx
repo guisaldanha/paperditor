@@ -111,17 +111,45 @@ function measureMatchRects(textarea: HTMLTextAreaElement, text: string, match: S
   return rects;
 }
 
+// Sobe a árvore de ancestrais do editor até achar um container com rolagem PRÓPRIA
+// (ex: .reading-view no modo Reading, que tem overflow-y:auto e altura fixa). Se
+// nenhum ancestral rolar por conta própria, quem rola é a própria página (window) —
+// caso do modo Editor, onde o único scroller real é o html/body.
+function findScrollParent(el: Element): HTMLElement | null {
+  let node = el.parentElement;
+  while (node) {
+    const { overflowY } = getComputedStyle(node);
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 // editor.commands.scrollIntoView() resolve através de EditorView.scrollToSelection(),
 // que lê a seleção REAL do navegador (domSelectionRange().focusNode) para decidir de
 // onde rolar — e só sincroniza essa seleção quando o editor tem foco (editorOwnsSelection
 // -> view.hasFocus()). Como a barra de busca mantém o foco no próprio <input> (para não
 // roubar o foco do editor durante a navegação entre matches), o editor nunca "possui" a
 // seleção e aquele mecanismo vira um no-op silencioso — por isso replicamos aqui o mesmo
-// cálculo de borda (coordsAtPos não depende de foco), rolando a página diretamente.
+// cálculo de borda (coordsAtPos não depende de foco), rolando o container real diretamente.
 function scrollMatchIntoView(editor: Editor, match: SearchMatch) {
   const coords = editor.view.coordsAtPos(match.from);
-  const toolbarHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-height')) || 0;
   const margin = 8;
+  const scrollParent = findScrollParent(editor.view.dom);
+  if (scrollParent) {
+    const box = scrollParent.getBoundingClientRect();
+    const topEdge = box.top + margin;
+    const bottomEdge = box.bottom - margin;
+    if (coords.top < topEdge) {
+      scrollParent.scrollBy({ top: coords.top - topEdge, behavior: 'smooth' });
+    } else if (coords.bottom > bottomEdge) {
+      scrollParent.scrollBy({ top: coords.bottom - bottomEdge, behavior: 'smooth' });
+    }
+    return;
+  }
+  const toolbarHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-height')) || 0;
   const topEdge = toolbarHeight + margin;
   const bottomEdge = window.innerHeight - margin;
   if (coords.top < topEdge) {

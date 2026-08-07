@@ -73,6 +73,60 @@ html {
   scroll-padding-top: var(--toolbar-height);
 }
 
+/* ── Barra de rolagem customizada ──────────────────────────────────────
+   Cobre os 4 containers com rolagem própria: html (modo Visual, onde a
+   página inteira rola), .reading-view e .toc-panel (modo Reading, painéis
+   independentes) e o textarea (modo Markdown). scrollbar-color/-width cobre
+   Firefox; Electron é Chromium, então ::-webkit-scrollbar é quem realmente
+   renderiza aqui. Usa as variáveis de tema, então claro/escuro seguem
+   automaticamente via [data-theme='dark']. */
+html,
+.reading-view,
+.toc-panel,
+.markdown-source textarea {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+html::-webkit-scrollbar,
+.reading-view::-webkit-scrollbar,
+.toc-panel::-webkit-scrollbar,
+.markdown-source textarea::-webkit-scrollbar {
+  width: 13px;
+  height: 13px;
+}
+
+html::-webkit-scrollbar-track,
+.reading-view::-webkit-scrollbar-track,
+.toc-panel::-webkit-scrollbar-track,
+.markdown-source textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+.reading-view::-webkit-scrollbar-thumb,
+.toc-panel::-webkit-scrollbar-thumb,
+.markdown-source textarea::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+html::-webkit-scrollbar-thumb:hover,
+.reading-view::-webkit-scrollbar-thumb:hover,
+.toc-panel::-webkit-scrollbar-thumb:hover,
+.markdown-source textarea::-webkit-scrollbar-thumb:hover {
+  background-color: var(--text-muted);
+}
+
+html::-webkit-scrollbar-corner,
+.reading-view::-webkit-scrollbar-corner,
+.toc-panel::-webkit-scrollbar-corner,
+.markdown-source textarea::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .app {
   min-height: 100vh;
   display: flex;
@@ -87,7 +141,7 @@ html {
 
 .tiptap-editor {
   width: 100%;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
   min-height: calc(100vh - 60px);
@@ -98,20 +152,28 @@ html {
   min-height: 400px;
 }
 
+/* Modo Reading: dois painéis com rolagem PRÓPRIA (nem a página/html rola), em vez
+   de fluir na rolagem única da página — assim o TOC nunca "some" ao rolar o texto,
+   igual dois frames HTML independentes lado a lado. A altura fixa é o que torna
+   .toc-panel/.reading-view scrolláveis (overflow-y:auto só tem efeito com altura
+   definida); sem isso eles só cresceriam com o conteúdo, como o resto do app. */
 .reading-layout {
   display: flex;
   width: 100%;
   flex: 1;
   align-items: stretch;
+  height: calc(100vh - var(--toolbar-height));
+  overflow: hidden;
 }
 
 .reading-view {
   flex: 1;
+  height: 100%;
+  overflow-y: auto;
   width: 100%;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
-  min-height: calc(100vh - 60px);
 }
 
 .reading-view .ProseMirror {
@@ -495,7 +557,7 @@ html {
 
 .markdown-source {
   width: 100%;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 24px;
   display: flex;
@@ -526,7 +588,6 @@ html {
 
 .markdown-source textarea:focus {
   outline: none;
-  border-color: var(--accent-color);
 }
 
 /* Destaque do match ativo no modo Source — a seleção nativa do textarea só é
