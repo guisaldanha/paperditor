@@ -397,19 +397,6 @@ function App() {
     window.electronAPI?.ipcRenderer.invoke('file:new');
   }, [checkUnsaved, editor]);
 
-  const handleOpen = useCallback(async () => {
-    const canProceed = await checkUnsaved();
-    if (!canProceed) return;
-    if (!window.electronAPI || !editor) return;
-    const result = await window.electronAPI.ipcRenderer.invoke('dialog:openFile') as {
-      content: string;
-      path: string;
-    } | null;
-    if (result) {
-      openFileContent(result.content, result.path);
-    }
-  }, [checkUnsaved, editor]);
-
   const openFileContent = useCallback((content: string, path: string) => {
     if (!editor) return;
     suppressDirty.current = true;
@@ -421,6 +408,19 @@ function App() {
     setFilePath(path);
     setIsDirty(false);
   }, [editor]);
+
+  const handleOpen = useCallback(async () => {
+    const canProceed = await checkUnsaved();
+    if (!canProceed) return;
+    if (!window.electronAPI || !editor) return;
+    const result = await window.electronAPI.ipcRenderer.invoke('dialog:openFile') as {
+      content: string;
+      path: string;
+    } | null;
+    if (result) {
+      openFileContent(result.content, result.path);
+    }
+  }, [checkUnsaved, editor, openFileContent]);
 
   useEffect(() => {
     if (!window.electronAPI || !editor) return;
@@ -583,7 +583,9 @@ function App() {
   }, []);
 
   // Mantém ref sincronizada com o estado para uso em event handlers (evita stale closure)
-  showFindBarRef.current = showFindBar;
+  useEffect(() => {
+    showFindBarRef.current = showFindBar;
+  }, [showFindBar]);
 
   // ── Rastreia tecla Ctrl para cursor de mãozinha em links internos ────────
   useEffect(() => {
