@@ -5,6 +5,11 @@
   "asar": true,
   "productName": "Paperditor",
   "icon": "public/icon.png",
+  // O workflow de release (.github/workflows/release.yml) só quer que o electron-builder
+  // EMPACOTE — quem publica a release no GitHub é o job "release" separado, via `gh
+  // release create`. Sem isso, o electron-builder detecta a tag no CI e tenta publicar
+  // ele mesmo, falhando por falta de GH_TOKEN nesse step.
+  "publish": null,
   "directories": {
     "output": "release/${version}"
   },
@@ -17,15 +22,13 @@
       "ext": "md",
       "name": "Markdown Document",
       "description": "Arquivo Markdown",
-      "role": "Editor",
-      "icon": "public/icon.png"
+      "role": "Editor"
     },
     {
       "ext": "markdown",
       "name": "Markdown Document",
       "description": "Arquivo Markdown",
-      "role": "Editor",
-      "icon": "public/icon.png"
+      "role": "Editor"
     }
   ],
   "mac": {
