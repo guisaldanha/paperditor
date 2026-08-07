@@ -1,4 +1,7 @@
 :root {
+  /* Fallback antes do ResizeObserver (App.tsx) medir a altura real da toolbar */
+  --toolbar-height: 110px;
+
   --bg-primary: #ffffff;
   --bg-editor: #ffffff;
   --bg-toolbar: #f3f3f3;
@@ -11,6 +14,17 @@
   --border-color: #d0d7de;
   --accent-color: #0366d6;
   --accent-light: rgba(3, 102, 214, 0.1);
+
+  /* Cores de sintaxe de código (classes hljs, geradas pelo lowlight) */
+  --hljs-keyword: #d73a49;
+  --hljs-string: #032f62;
+  --hljs-comment: #6a737d;
+  --hljs-number: #005cc5;
+  --hljs-title: #6f42c1;
+  --hljs-tag: #22863a;
+  --hljs-built_in: #005cc5;
+  --hljs-deletion-bg: #ffeef0;
+  --hljs-addition-bg: #f0fff4;
 }
 
 [data-theme='dark'] {
@@ -26,6 +40,17 @@
   --border-color: #30363d;
   --accent-color: #58a6ff;
   --accent-light: rgba(88, 166, 255, 0.15);
+
+  /* Paleta estilo "Atom One Dark", igual à usada pelo MDViewer (Prism) */
+  --hljs-keyword: #c678dd;
+  --hljs-string: #98c379;
+  --hljs-comment: #7f848e;
+  --hljs-number: #d19a66;
+  --hljs-title: #61afef;
+  --hljs-tag: #e06c75;
+  --hljs-built_in: #56b6c2;
+  --hljs-deletion-bg: rgba(224, 108, 117, 0.15);
+  --hljs-addition-bg: rgba(152, 195, 121, 0.15);
 }
 
 * {
@@ -39,6 +64,13 @@ body {
   background: var(--bg-primary);
   color: var(--text-color);
   line-height: 1.5;
+}
+
+/* A página inteira (não .reading-view) é o scroller real — nenhum ancestral define
+   overflow próprio. scroll-padding-top desloca todo scrollIntoView() (TOC, links de
+   heading, notas de rodapé) para compensar a toolbar sticky que cobre o topo. */
+html {
+  scroll-padding-top: var(--toolbar-height);
 }
 
 .app {
@@ -64,6 +96,103 @@ body {
 .tiptap-editor .tiptap {
   outline: none;
   min-height: 400px;
+}
+
+.reading-layout {
+  display: flex;
+  width: 100%;
+  flex: 1;
+  align-items: stretch;
+}
+
+.reading-view {
+  flex: 1;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+  min-height: calc(100vh - 60px);
+}
+
+.reading-view .ProseMirror {
+  outline: none;
+  cursor: default;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-size: 16px;
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── Painel de sumário (TOC) do modo Reading ──────────────────────────── */
+.toc-panel {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 20px 12px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-toolbar);
+}
+
+.toc-panel__title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  padding: 0 8px;
+}
+
+.toc-panel__empty {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 0 8px;
+}
+
+.toc-panel ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toc-panel li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-color);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toc-panel li button:hover {
+  background: var(--bg-button-hover);
+}
+
+.toc-level-1 button { font-weight: 600; }
+.toc-level-2 button { padding-left: 18px; }
+.toc-level-3 button { padding-left: 28px; font-size: 12px; color: var(--text-muted); }
+.toc-level-4 button { padding-left: 38px; font-size: 12px; color: var(--text-muted); }
+.toc-level-5 button { padding-left: 48px; font-size: 12px; color: var(--text-muted); }
+.toc-level-6 button { padding-left: 58px; font-size: 12px; color: var(--text-muted); }
+
+/* No modo Reading, links e notas de rodapé navegam com clique simples (ver
+   handleEditorClick em App.tsx), então o cursor de mãozinha fica sempre visível,
+   sem precisar segurar Ctrl como no modo Editor. */
+.reading-view .ProseMirror a[href] {
+  cursor: pointer;
+}
+
+.reading-view .ProseMirror sup {
+  cursor: pointer;
 }
 
 .tiptap-editor .ProseMirror {
@@ -144,11 +273,130 @@ body {
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;
+  margin: 0;
 }
 
 .ProseMirror pre code {
   background: transparent;
   padding: 0;
+}
+
+/* ── Bloco de código: wrapper do NodeView (rótulo de linguagem + botão copiar) ── */
+.code-block-wrap {
+  position: relative;
+  margin: 1em 0;
+}
+
+.code-block-toolbar {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+
+.code-block-wrap:hover .code-block-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.code-block-lang {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  background: var(--bg-toolbar);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.code-block-copy-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-button);
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.code-block-copy-btn:hover {
+  background: var(--bg-button-hover);
+}
+
+/* ── Cores de sintaxe (classes hljs geradas pelo lowlight/CodeBlockLowlight) ── */
+.ProseMirror .hljs-comment,
+.ProseMirror .hljs-quote {
+  color: var(--hljs-comment);
+  font-style: italic;
+}
+
+.ProseMirror .hljs-keyword,
+.ProseMirror .hljs-selector-tag,
+.ProseMirror .hljs-subst {
+  color: var(--hljs-keyword);
+}
+
+.ProseMirror .hljs-number,
+.ProseMirror .hljs-literal,
+.ProseMirror .hljs-variable,
+.ProseMirror .hljs-template-variable {
+  color: var(--hljs-number);
+}
+
+.ProseMirror .hljs-string,
+.ProseMirror .hljs-doctag,
+.ProseMirror .hljs-regexp,
+.ProseMirror .hljs-link {
+  color: var(--hljs-string);
+}
+
+.ProseMirror .hljs-title,
+.ProseMirror .hljs-section,
+.ProseMirror .hljs-selector-id,
+.ProseMirror .hljs-type,
+.ProseMirror .hljs-class .hljs-title {
+  color: var(--hljs-title);
+  font-weight: 600;
+}
+
+.ProseMirror .hljs-tag,
+.ProseMirror .hljs-name,
+.ProseMirror .hljs-attribute,
+.ProseMirror .hljs-attr {
+  color: var(--hljs-tag);
+}
+
+.ProseMirror .hljs-symbol,
+.ProseMirror .hljs-bullet,
+.ProseMirror .hljs-built_in,
+.ProseMirror .hljs-builtin-name {
+  color: var(--hljs-built_in);
+}
+
+.ProseMirror .hljs-meta {
+  color: var(--hljs-comment);
+}
+
+.ProseMirror .hljs-deletion {
+  background: var(--hljs-deletion-bg);
+}
+
+.ProseMirror .hljs-addition {
+  background: var(--hljs-addition-bg);
+}
+
+.ProseMirror .hljs-emphasis {
+  font-style: italic;
+}
+
+.ProseMirror .hljs-strong {
+  font-weight: 700;
 }
 
 .ProseMirror blockquote {

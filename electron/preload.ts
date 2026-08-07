@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         'dialog:openFile',
         'dialog:saveFile',
         'dialog:exportPdf',
+        'dialog:exportHtml',
+        'dialog:exportDocx',
         'dialog:print',
         'dialog:showUnsavedDialog',
         'app:confirmClose',

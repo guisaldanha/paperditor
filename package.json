@@ -41,6 +41,7 @@
     "@tiptap/react": "^3.22.4",
     "@tiptap/starter-kit": "^3.22.4",
     "codemirror": "^6.0.2",
+    "html-to-docx": "^1.8.0",
     "lowlight": "^3.3.0",
     "node-emoji": "^2.2.0",
     "react": "^18.2.0",

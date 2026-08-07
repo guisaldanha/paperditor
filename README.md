@@ -9,7 +9,7 @@
     <img src="https://img.shields.io/badge/macOS-experimental-lightgrey?logo=apple" alt="macOS: experimental" />
     <img src="https://img.shields.io/badge/Linux-experimental-lightgrey?logo=linux" alt="Linux: experimental" />
     <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
-    <img src="https://img.shields.io/badge/version-1.0.0-orange" alt="Version: 1.0.0" />
+    <img src="https://img.shields.io/github/v/release/guisaldanha/paperditor?color=orange" alt="Version" />
     <img src="https://img.shields.io/badge/built%20with-Electron%20%2B%20React-61DAFB?logo=react" alt="Built with Electron + React" />
   </p>
 
@@ -53,10 +53,11 @@ Built for developers, writers, and anyone who loves Markdown.
 
 ### ✍️ Editing Experience
 - **WYSIWYG Markdown editing** — content renders live as you type, no split panes
-- **Dual mode** — switch between rich WYSIWYG and raw Markdown source at any time
+- **Three modes** — switch between rich WYSIWYG Editor, raw Markdown Source, and a read-only Reading view at any time
+- **Reading mode** — distraction-free, read-only rendering with syntax-highlighted code blocks (one-click copy button) and a collapsible table of contents
 - **Unsaved-changes indicator** — bullet (`•`) in the title bar when you have unsaved work
-- **File associations** — double-click any `.md` or `.markdown` file to open it directly in Paperditor
-- **Single-instance aware** — opening a second file focuses the existing window instead of spawning a new one
+- **File associations** — double-click any `.md` or `.markdown` file to open it directly in Paperditor's Reading mode; on Windows, right-click → **Edit with Paperditor** opens it straight into the Editor instead
+- **Multi-window** — opening another file (via file association or a relaunch) always opens it in a new window, so you can work on several documents side by side
 
 ### 📝 Formatting Toolbar
 | Category | Supported |
@@ -73,14 +74,14 @@ Built for developers, writers, and anyone who loves Markdown.
 
 ### 📁 File Operations
 - Open, Save, Save As `.md` files
-- **Export to PDF** — clean, print-ready output
+- **Export to PDF, HTML, or Word (.docx)** — available from the Reading tab
 - **Print** — send directly to your printer
 
 ### 🎨 Themes
 - **Light** and **Dark** themes — toggled with a single click, persisted across sessions
 
-### 🔍 Find & Replace
-- Inline find bar (`Ctrl+F`) — search through your document without leaving the editor
+### 🔍 Find
+- Inline find bar (`Ctrl+F`) — search and jump through matches without leaving the editor or losing your place
 
 ---
 
@@ -99,6 +100,7 @@ Built for developers, writers, and anyone who loves Markdown.
 | Italic | `Ctrl+I` |
 | Undo | `Ctrl+Z` |
 | Redo | `Ctrl+Y` / `Ctrl+Shift+Z` |
+| Toggle Editor / Source | `Ctrl+'` |
 | Toggle fullscreen | `F11` |
 
 ---
@@ -161,6 +163,7 @@ None of the installers are code-signed (no paid certificate), so your OS will wa
 | Editor Engine | [TipTap](https://tiptap.dev/) |
 | Markdown Parser | [@tiptap/markdown](https://tiptap.dev/docs/editor/extensions/functionality/markdown) |
 | Code Highlighting | [lowlight](https://github.com/wooorm/lowlight) |
+| Office Export | [html-to-docx](https://www.npmjs.com/package/html-to-docx) |
 | Bundler | [Vite](https://vitejs.dev/) |
 | Packaging | [electron-builder](https://www.electron.build/) |
 
@@ -183,8 +186,7 @@ Ways to help:
 
 - ⭐ **Star the repository**
 - 🔁 **Share with other developers**
-- ☕ **[Buy me a coffee](https://www.paypal.com/paypalme/guisaldanha) by clicking here (PayPal)**
-
+- ☕ **[Buy me a coffee by clicking here](https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&amp;business=guisaldanha@gmail.com&amp;item_name=Buy%20a%20coffee%20because%20Paperditor)  (PayPal)**
 ---
 
 ## 📜 License

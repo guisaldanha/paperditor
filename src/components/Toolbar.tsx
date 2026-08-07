@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { forwardRef, useState, useRef } from 'react';
 import { Editor, useEditorState } from '@tiptap/react';
 import './Toolbar.css';
 
@@ -39,6 +39,8 @@ const IcoWrench     = ({size=15}: SP) => <svg width={size} height={size} viewBox
 const IcoTrash      = ({size=15}: SP) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>;
 const IcoFootnote  = ({size=15}: SP) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19h16"/><path d="M4 15h16"/><text x="8" y="11" fontSize="8" fontWeight="bold" fill="currentColor" stroke="none">¹</text></svg>;
 const IcoSmile     = ({size=15}: SP) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 13s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>;
+const IcoToc       = ({size=15}: SP) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>;
+const IcoFileOut   = ({size=15}: SP) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
 
 // ── Emoji / icon data ─────────────────────────────────────────────────────────
 const EMOJI_CATS = [
@@ -140,32 +142,46 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
+type ToolbarTab = 'general' | 'tables' | 'reading';
+
 interface ToolbarProps {
   editor: Editor | null;
   onOpen: () => void;
   onSave: () => void;
   onExportPdf: () => void;
+  onExportHtml: () => void;
+  onExportDocx: () => void;
   onPrint: () => void;
   onToggleTheme: () => void;
   onToggleMode: () => void;
   isDark: boolean;
   isMarkdownMode: boolean;
   isDirty: boolean;
+  activeTab: ToolbarTab;
+  onTabChange: (tab: ToolbarTab) => void;
+  showToc: boolean;
+  onToggleToc: () => void;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-function Toolbar({
+const Toolbar = forwardRef<HTMLDivElement, ToolbarProps>(function Toolbar({
   editor,
   onOpen,
   onSave,
   onExportPdf,
+  onExportHtml,
+  onExportDocx,
   onPrint,
   onToggleTheme,
   onToggleMode,
   isDark,
   isMarkdownMode,
   isDirty,
-}: ToolbarProps) {
+  activeTab,
+  onTabChange,
+  showToc,
+  onToggleToc,
+}, ref) {
   const [linkUrl, setLinkUrl] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageAlt, setImageAlt] = useState('');
@@ -174,7 +190,6 @@ function Toolbar({
   const [showFootnotePopover, setShowFootnotePopover] = useState(false);
   const [footnoteText, setFootnoteText] = useState('');
   const footnoteCounter = useRef(1);
-  const [activeTab, setActiveTab] = useState<'general' | 'tables'>('general');
   const [showIconPopover, setShowIconPopover] = useState(false);
   const [iconCat, setIconCat] = useState(0);
 
@@ -307,21 +322,27 @@ function Toolbar({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="toolbar">
+    <div className="toolbar" ref={ref}>
 
       {/* Tab strip */}
       <div className="toolbar-tabs">
         <button
           className={`toolbar-tab${activeTab === 'general' ? ' active' : ''}`}
-          onClick={() => setActiveTab('general')}
+          onClick={() => onTabChange('general')}
         >
           Home
         </button>
         <button
           className={`toolbar-tab${activeTab === 'tables' ? ' active' : ''}`}
-          onClick={() => setActiveTab('tables')}
+          onClick={() => onTabChange('tables')}
         >
           Tables
+        </button>
+        <button
+          className={`toolbar-tab${activeTab === 'reading' ? ' active' : ''}`}
+          onClick={() => onTabChange('reading')}
+        >
+          Reading
         </button>
       </div>
 
@@ -555,17 +576,36 @@ function Toolbar({
 
           </>}
 
+          {/* ── READING ─────────────────────────────────────────────────── */}
+          {activeTab === 'reading' && <>
+
+            <Group label="File">
+              <button className="toolbar-btn" onClick={onOpen} title="Open (Ctrl+O)"><IcoOpen/></button>
+              <button className={`toolbar-btn${showToc ? ' active' : ''}`} onClick={onToggleToc} title="Table of contents"><IcoToc/></button>
+              <button className="toolbar-btn" onClick={onPrint} title="Print (Ctrl+P)"><IcoPrint/></button>
+            </Group>
+
+            <Group label="Export">
+              <button className="toolbar-btn" onClick={onExportPdf}  title="Export PDF"><IcoPdf/> <span className="btn-label-sm">PDF</span></button>
+              <button className="toolbar-btn" onClick={onExportHtml} title="Export HTML"><IcoFileOut/> <span className="btn-label-sm">HTML</span></button>
+              <button className="toolbar-btn" onClick={onExportDocx} title="Export Word (.docx)"><IcoFileOut/> <span className="btn-label-sm">DOCX</span></button>
+            </Group>
+
+          </>}
+
         </div>
 
         {/* Right side: always visible */}
         <div className="toolbar-ribbon-right">
-          <button
-            className={`toolbar-btn toggle-btn${isMarkdownMode ? ' active' : ''}`}
-            onClick={onToggleMode}
-            title="Toggle between Visual Editor and Markdown Source"
-          >
-            {isMarkdownMode ? '👁 Visual' : '📝 Markdown'}
-          </button>
+          {activeTab !== 'reading' && (
+            <button
+              className={`toolbar-btn toggle-btn${isMarkdownMode ? ' active' : ''}`}
+              onClick={onToggleMode}
+              title="Toggle between Visual Editor and Markdown Source"
+            >
+              {isMarkdownMode ? '👁 Visual' : '📝 Markdown'}
+            </button>
+          )}
           <button
             className="toolbar-btn"
             onClick={onToggleTheme}
@@ -578,6 +618,6 @@ function Toolbar({
 
     </div>
   );
-}
+});
 
 export default Toolbar;

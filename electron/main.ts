@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog, Menu, MenuItemConstructorOptions, 
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
+import HTMLtoDOCX from 'html-to-docx';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,27 +23,56 @@ interface WindowState {
 
 const windowStates = new Map<number, WindowState>();
 
+// 'reading': associação padrão de arquivo (duplo clique / verbo "Open") — somente
+// visualização. 'editor': verbo "Edit with Paperditor" do menu de contexto do Windows
+// (ver build/installer.nsh), que passa a flag --edit.
+type OpenMode = 'reading' | 'editor';
+
+interface LaunchIntent {
+  filePath: string | null;
+  mode: OpenMode;
+}
+
+function getLaunchIntent(argv: string[]): LaunchIntent {
+  let filePath: string | null = null;
+  let mode: OpenMode = 'reading';
+  // Em produção: argv[0] é o executável; em dev pode ter flags do Electron
+  for (const arg of argv.slice(1)) {
+    if (arg === '--edit') {
+      mode = 'editor';
+      continue;
+    }
+    if (!arg.startsWith('-') && /\.(md|markdown)$/i.test(arg) && fs.existsSync(arg)) {
+      filePath = arg;
+    }
+  }
+  return { filePath, mode };
+}
+
 // Single instance lock: multiple windows within one process, but only one process
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 }
 
-app.on('second-instance', (_event, argv) => {
-  // Open a new window for each additional launch, optionally with the provided file
-  const file = getFileFromArgs(argv);
-  createWindow(file ?? undefined);
+// No macOS, arquivos abertos via associação chegam por este evento (não por argv), e
+// pode disparar antes de app.whenReady() numa abertura "a frio" via duplo clique no
+// Finder — por isso guardamos o caminho para usar depois que o app estiver pronto.
+let macOpenFilePath: string | null = null;
+app.on('open-file', (event, filePath) => {
+  event.preventDefault();
+  if (app.isReady()) {
+    createWindow(filePath, 'reading');
+  } else {
+    macOpenFilePath = filePath;
+  }
 });
 
-function getFileFromArgs(argv: string[]): string | null {
-  // Em produção: argv[0] é o executável; em dev pode ter flags do Electron
-  for (const arg of argv.slice(1)) {
-    if (!arg.startsWith('-') && /\.(md|markdown)$/i.test(arg) && fs.existsSync(arg)) {
-      return arg;
-    }
-  }
-  return null;
-}
+app.on('second-instance', (_event, argv) => {
+  // Open a new window for each additional launch, optionally with the provided file
+  const { filePath, mode } = getLaunchIntent(argv);
+  createWindow(filePath ?? undefined, mode);
+});
 
 function getFocusedWin(): BrowserWindow | null {
   return BrowserWindow.getFocusedWindow();
@@ -127,7 +157,7 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
-function createWindow(filePath?: string) {
+function createWindow(filePath?: string, mode: OpenMode = 'reading') {
   const win = new BrowserWindow({
     width: 1250,
     height: 800,
@@ -183,7 +213,7 @@ function createWindow(filePath?: string) {
       try {
         const content = fs.readFileSync(filePath, 'utf-8');
         state.currentFilePath = filePath;
-        win.webContents.send('file:opened', { content, path: filePath });
+        win.webContents.send('file:opened', { content, path: filePath, mode });
       } catch (error) {
         console.error('Erro ao abrir arquivo:', error);
       }
@@ -295,6 +325,29 @@ ipcMain.handle('dialog:exportPdf', async (event, { htmlContent }: { htmlContent:
   return true;
 });
 
+ipcMain.handle('dialog:exportHtml', async (event, { htmlContent }: { htmlContent: string }) => {
+  const win = BrowserWindow.fromWebContents(event.sender)!;
+  const saveResult = await dialog.showSaveDialog(win, {
+    filters: [{ name: 'HTML', extensions: ['html'] }],
+  });
+  if (saveResult.canceled || !saveResult.filePath) return false;
+
+  fs.writeFileSync(saveResult.filePath, htmlContent, 'utf-8');
+  return true;
+});
+
+ipcMain.handle('dialog:exportDocx', async (event, { htmlContent }: { htmlContent: string }) => {
+  const win = BrowserWindow.fromWebContents(event.sender)!;
+  const saveResult = await dialog.showSaveDialog(win, {
+    filters: [{ name: 'Word Document', extensions: ['docx'] }],
+  });
+  if (saveResult.canceled || !saveResult.filePath) return false;
+
+  const buffer = await HTMLtoDOCX(htmlContent, null, { table: { row: { cantSplit: true } } });
+  fs.writeFileSync(saveResult.filePath, buffer);
+  return true;
+});
+
 ipcMain.handle('dialog:print', async (_event, { htmlContent }: { htmlContent: string }) => {
   const printWin = new BrowserWindow({
     show: false,
@@ -304,7 +357,7 @@ ipcMain.handle('dialog:print', async (_event, { htmlContent }: { htmlContent: st
   await printWin.loadURL(dataUrl);
 
   await new Promise<void>((resolve) => {
-    printWin.webContents.print({}, (_success, _failureReason) => resolve());
+    printWin.webContents.print({}, () => resolve());
   });
   printWin.destroy();
 });
@@ -363,7 +416,12 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   createMenu();
 
-  // Abre arquivo passado como argumento (duplo clique em .md no Windows)
-  const file = getFileFromArgs(process.argv);
-  createWindow(file ?? undefined);
+  // Abre arquivo passado como argumento (duplo clique em .md/.markdown no Windows/Linux,
+  // ou verbo "Edit with Paperditor" via --edit) ou capturado por open-file no macOS.
+  if (macOpenFilePath) {
+    createWindow(macOpenFilePath, 'reading');
+  } else {
+    const { filePath, mode } = getLaunchIntent(process.argv);
+    createWindow(filePath ?? undefined, mode);
+  }
 });

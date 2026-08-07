@@ -37,6 +37,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Set package version from tag
+        shell: bash
+        run: npm pkg set version="${GITHUB_REF_NAME#v}"
+
       - name: Build installer
         run: npm run build
 

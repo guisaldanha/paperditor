@@ -18,11 +18,12 @@ import TableHeader from '@tiptap/extension-table-header';
 import TextAlign from '@tiptap/extension-text-align';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import CodeBlock from '@tiptap/extension-code-block';
+import CodeBlockWithCopy from './extensions/CodeBlockWithCopy';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import UniqueID from '@tiptap/extension-unique-id';
 import Toolbar from './components/Toolbar';
 import FindBar, { FindBarHandle } from './components/FindBar';
+import Toc from './components/Toc';
 import SearchHighlight from './extensions/SearchHighlight';
 import './App.css';
 
@@ -176,6 +177,9 @@ function App() {
   const [isMarkdownMode, setIsMarkdownMode] = useState(() => {
     return localStorage.getItem('editorMode') === 'markdown';
   });
+  const [toolbarTab, setToolbarTab] = useState<'general' | 'tables' | 'reading'>('general');
+  const isReadingMode = toolbarTab === 'reading';
+  const [showToc, setShowToc] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   const [isCtrlHeld, setIsCtrlHeld] = useState(false);
   const [showFindBar, setShowFindBar] = useState(false);
@@ -185,6 +189,7 @@ function App() {
   const footnoteDefsRef = useRef<Map<string, string>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sourceWrapRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const pendingSourceSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const pendingVisualFocusRef = useRef(false);
 
@@ -223,7 +228,7 @@ function App() {
       TaskItem.configure({
         nested: true,
       }),
-      CodeBlock,
+      CodeBlockWithCopy,
       HorizontalRule,
       Placeholder.configure({
         placeholder: 'Start typing your markdown here...',
@@ -240,6 +245,37 @@ function App() {
       suppressDirty.current = false;
     },
   });
+
+  // Publica a altura real da toolbar (pode variar: a ribbon quebra linha em janelas
+  // estreitas) como variável CSS, usada pelo scroll-padding-top do documento — sem
+  // isso, o scrollIntoView NATIVO (TOC, links de heading, notas de rodapé) posiciona
+  // o alvo exatamente no topo da página, e a toolbar (sticky) fica por cima escondendo-o.
+  //
+  // O scrollIntoView da BUSCA (editor.commands.scrollIntoView, usado pelo FindBar) é
+  // outro mecanismo, totalmente à parte — implementado manualmente pelo próprio
+  // ProseMirror (scrollRectIntoView), que NÃO respeita scroll-padding-top nenhum.
+  // Ele tem seu próprio jeito de saber quanto espaço deixar nas bordas: as editorProps
+  // scrollThreshold/scrollMargin. Sem configurá-las, um match logo abaixo da toolbar
+  // pode ser considerado "já visível" (o cálculo não desconta a altura da toolbar) e o
+  // ProseMirror decide que não precisa rolar — por isso replicamos a mesma altura ali.
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el || !editor) return;
+    const updateHeight = () => {
+      const height = el.offsetHeight;
+      document.documentElement.style.setProperty('--toolbar-height', `${height}px`);
+      editor.setOptions({
+        editorProps: {
+          scrollThreshold: { top: height + 8, bottom: 8, left: 8, right: 8 },
+          scrollMargin: { top: height + 8, bottom: 8, left: 8, right: 8 },
+        },
+      });
+    };
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [editor]);
 
   // Título da janela com indicador de alterações
   useEffect(() => {
@@ -391,42 +427,87 @@ function App() {
 
     const unsubs = [
       window.electronAPI.ipcRenderer.on('file:opened', (...args: unknown[]) => {
-        const data = args[0] as { content: string; path: string } | undefined;
+        const data = args[0] as { content: string; path: string; mode?: 'reading' | 'editor' } | undefined;
         if (data) {
           openFileContent(data.content, data.path);
+          // `mode` só vem preenchido quando o arquivo chega via associação do SO (ver
+          // electron/main.ts: getLaunchIntent/open-file) — navegação por link interno
+          // (Ctrl+clique num link relativo) não define mode, então mantém o modo atual
+          // em vez de forçar Reading/Editor.
+          if (data.mode) {
+            setIsMarkdownMode(false);
+            setToolbarTab(data.mode === 'reading' ? 'reading' : 'general');
+          }
         }
       }),
     ];
     return () => unsubs.forEach(fn => fn?.());
   }, [editor, openFileContent]);
 
+  // Garante que o documento Tiptap reflete o conteúdo atual antes de gerar o HTML de
+  // exportação/impressão — necessário porque no modo Source o editor pode estar
+  // desatualizado em relação ao textarea. Compartilhado entre export PDF/HTML/DOCX/Print.
+  const syncEditorFromMarkdownIfNeeded = useCallback(() => {
+    if (!editor || !isMarkdownMode) return;
+    suppressDirty.current = true;
+    editor.commands.setContent(preprocessFootnotes(markdownContent, footnoteDefsRef.current), { contentType: 'markdown' });
+    suppressDirty.current = false;
+  }, [editor, isMarkdownMode, markdownContent]);
+
   const handleExportPdf = useCallback(async () => {
     if (!window.electronAPI || !editor) return;
-    if (isMarkdownMode) {
-      suppressDirty.current = true;
-      editor.commands.setContent(preprocessFootnotes(markdownContent, footnoteDefsRef.current), { contentType: 'markdown' });
-      suppressDirty.current = false;
-    }
+    syncEditorFromMarkdownIfNeeded();
     const htmlContent = generatePrintHtml();
     await window.electronAPI.ipcRenderer.invoke('dialog:exportPdf', { htmlContent });
-  }, [editor, isMarkdownMode, markdownContent, generatePrintHtml]);
+  }, [editor, syncEditorFromMarkdownIfNeeded, generatePrintHtml]);
+
+  const handleExportHtml = useCallback(async () => {
+    if (!window.electronAPI || !editor) return;
+    syncEditorFromMarkdownIfNeeded();
+    const htmlContent = generatePrintHtml();
+    await window.electronAPI.ipcRenderer.invoke('dialog:exportHtml', { htmlContent });
+  }, [editor, syncEditorFromMarkdownIfNeeded, generatePrintHtml]);
+
+  const handleExportDocx = useCallback(async () => {
+    if (!window.electronAPI || !editor) return;
+    syncEditorFromMarkdownIfNeeded();
+    const htmlContent = generatePrintHtml();
+    await window.electronAPI.ipcRenderer.invoke('dialog:exportDocx', { htmlContent });
+  }, [editor, syncEditorFromMarkdownIfNeeded, generatePrintHtml]);
 
   const handlePrint = useCallback(async () => {
     if (!window.electronAPI || !editor) return;
-    if (isMarkdownMode) {
-      suppressDirty.current = true;
-      editor.commands.setContent(preprocessFootnotes(markdownContent, footnoteDefsRef.current), { contentType: 'markdown' });
-      suppressDirty.current = false;
-    }
+    syncEditorFromMarkdownIfNeeded();
     const htmlContent = generatePrintHtml();
     await window.electronAPI.ipcRenderer.invoke('dialog:print', { htmlContent });
-  }, [editor, isMarkdownMode, markdownContent, generatePrintHtml]);
+  }, [editor, syncEditorFromMarkdownIfNeeded, generatePrintHtml]);
 
   const handleToggleTheme = useCallback(() => {
     setIsDark((prev) => !prev);
   }, []);
 
+  // Source → Visual: carrega o markdown no editor Tiptap e aplica a seleção equivalente.
+  // Compartilhado entre handleToggleMode e a entrada no modo Reading a partir do Source
+  // (a visualização Reading usa o mesmo documento Tiptap do modo Editor).
+  const switchSourceToEditor = useCallback(() => {
+    if (!editor) return;
+    const textarea = textareaRef.current;
+    const selStart = textarea ? textarea.selectionStart : 0;
+    const selEnd = textarea ? textarea.selectionEnd : 0;
+    suppressDirty.current = true;
+    const withEmoji = preprocessEmojis(markdownContent);
+    const processed = preprocessFootnotes(withEmoji, footnoteDefsRef.current);
+    editor.commands.setContent(processed, { contentType: 'markdown' });
+    suppressDirty.current = false;
+
+    const breakpoints = buildPositionMap(editor.state.doc, markdownContent);
+    applySelectionFromTextOffsets(editor, breakpoints, selStart, selEnd);
+    setIsMarkdownMode(false);
+    localStorage.setItem('editorMode', 'visual');
+  }, [editor, markdownContent]);
+
   const handleToggleMode = useCallback(() => {
+    if (isReadingMode) return; // alternância Editor/Source não se aplica no modo Reading
     if (!isMarkdownMode) {
       // Visual → Source: converte conteúdo do Tiptap para markdown, e calcula em que
       // offsets do texto markdown resultante a seleção (ou só o cursor) deve cair.
@@ -443,27 +524,32 @@ function App() {
       setIsMarkdownMode(true);
       localStorage.setItem('editorMode', 'markdown');
     } else {
-      // Source → Visual: carrega o markdown no editor Tiptap e já aplica a seleção
-      // equivalente (a posição em si não depende do DOM estar montado — só focar e
-      // rolar até ela precisam esperar o remount do EditorContent, feito no efeito abaixo).
-      const textarea = textareaRef.current;
-      const selStart = textarea ? textarea.selectionStart : 0;
-      const selEnd = textarea ? textarea.selectionEnd : 0;
-      if (editor) {
-        suppressDirty.current = true;
-        const withEmoji = preprocessEmojis(markdownContent);
-        const processed = preprocessFootnotes(withEmoji, footnoteDefsRef.current);
-        editor.commands.setContent(processed, { contentType: 'markdown' });
-        suppressDirty.current = false;
-
-        const breakpoints = buildPositionMap(editor.state.doc, markdownContent);
-        applySelectionFromTextOffsets(editor, breakpoints, selStart, selEnd);
-        pendingVisualFocusRef.current = true;
-      }
-      setIsMarkdownMode(false);
-      localStorage.setItem('editorMode', 'visual');
+      // Source → Visual: a posição em si não depende do DOM estar montado — só focar e
+      // rolar até ela precisam esperar o remount do EditorContent, feito no efeito abaixo.
+      switchSourceToEditor();
+      pendingVisualFocusRef.current = true;
     }
-  }, [isMarkdownMode, getMarkdownFromEditor, editor, markdownContent]);
+  }, [isReadingMode, isMarkdownMode, getMarkdownFromEditor, editor, switchSourceToEditor]);
+
+  // Muda a aba ativa da toolbar. Entrar na aba "reading" a partir do modo Source
+  // primeiro converte o conteúdo para o documento Tiptap (mesmo caminho do toggle
+  // Source→Visual), já que o modo Reading reaproveita o editor Tiptap em somente-leitura.
+  const handleTabChange = useCallback((tab: 'general' | 'tables' | 'reading') => {
+    if (tab === 'reading' && isMarkdownMode) {
+      switchSourceToEditor();
+    }
+    setToolbarTab(tab);
+  }, [isMarkdownMode, switchSourceToEditor]);
+
+  // Mantém o editor não-editável enquanto o modo Reading está ativo, e reabilita a
+  // edição ao sair dele — funciona em cima da mesma instância/documento do editor.
+  useEffect(() => {
+    if (!editor) return;
+    // Segundo argumento `false`: não emite 'update' — alternar editable não é uma
+    // edição de conteúdo, e por padrão setEditable() dispara 'update' mesmo assim,
+    // o que marcava o documento como sujo só de montar o editor ou entrar no Reading.
+    editor.setEditable(!isReadingMode, false);
+  }, [editor, isReadingMode]);
 
   // Restaura seleção + rolagem do textarea ao entrar em modo Source vindo do modo Visual.
   useEffect(() => {
@@ -566,7 +652,10 @@ function App() {
 
   // ── Handler de clique em links (Ctrl+clique para navegar) ───────────────────
   const handleEditorClick = useCallback(async (e: React.MouseEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
+    // No modo Reading, links/notas de rodapé navegam com clique simples (não precisa
+    // de Ctrl) — não há texto sendo editado, então não existe o conflito com
+    // posicionamento de cursor que motiva a exigência de Ctrl no modo Editor.
+    if (!isReadingMode && !e.ctrlKey && !e.metaKey) return;
 
     // 1. Notas de rodapé: <sup>N</sup> (inline ref sem <a>)
     const sup = (e.target as HTMLElement).closest('sup') as HTMLElement | null;
@@ -607,7 +696,7 @@ function App() {
       const result = await window.electronAPI.ipcRenderer.invoke('file:open', href) as { content: string; path: string } | null;
       if (result) openFileContent(result.content, result.path);
     }
-  }, [openFileContent]);
+  }, [openFileContent, isReadingMode]);
 
   // Mantém referência sempre atualizada dos handlers para os listeners de menu
   const handlersRef = useRef<{
@@ -662,19 +751,33 @@ function App() {
         />
       )}
       <Toolbar
+        ref={toolbarRef}
         editor={editor}
         onOpen={handleOpen}
         onSave={handleSave}
         onExportPdf={handleExportPdf}
+        onExportHtml={handleExportHtml}
+        onExportDocx={handleExportDocx}
         onPrint={handlePrint}
         onToggleTheme={handleToggleTheme}
         onToggleMode={handleToggleMode}
         isDark={isDark}
         isMarkdownMode={isMarkdownMode}
         isDirty={isDirty}
+        activeTab={toolbarTab}
+        onTabChange={handleTabChange}
+        showToc={showToc}
+        onToggleToc={() => setShowToc((v) => !v)}
       />
       <main className="main-content">
-        {isMarkdownMode ? (
+        {isReadingMode ? (
+          <div className="reading-layout">
+            {showToc && <Toc editor={editor} slugify={slugify} />}
+            <div className="reading-view" onClick={handleEditorClick}>
+              <EditorContent editor={editor} />
+            </div>
+          </div>
+        ) : isMarkdownMode ? (
           <div className="markdown-source">
             <div className="markdown-source__editor-wrap" ref={sourceWrapRef}>
               <textarea
