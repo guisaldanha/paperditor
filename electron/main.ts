@@ -78,6 +78,94 @@ function getFocusedWin(): BrowserWindow | null {
   return BrowserWindow.getFocusedWindow();
 }
 
+let aboutWindow: BrowserWindow | null = null;
+
+// Janela HTML própria em vez de dialog.showMessageBox: o MessageBox nativo só
+// aceita texto puro no "detail", então links não ficam clicáveis.
+function showAboutDialog() {
+  if (aboutWindow) {
+    aboutWindow.focus();
+    return;
+  }
+
+  const parent = getFocusedWin();
+  const iconBase64 = fs.readFileSync(path.join(process.env.VITE_PUBLIC, 'icon.png')).toString('base64');
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0;
+    padding: 28px 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    text-align: center;
+    color: #1a1a1a;
+  }
+  img { width: 64px; height: 64px; margin-bottom: 10px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .version { color: #666; font-size: 12px; margin-bottom: 14px; }
+  .desc { font-size: 12px; margin-bottom: 16px; }
+  .row { margin: 6px 0; font-size: 12px; }
+  a { color: #0969da; text-decoration: none; cursor: pointer; }
+  a:hover { text-decoration: underline; }
+  .versions { margin-top: 18px; font-size: 11px; color: #888; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e6e6e6; }
+    .version, .versions { color: #999; }
+    a { color: #58a6ff; }
+  }
+</style>
+</head>
+<body>
+  <img src="data:image/png;base64,${iconBase64}" alt="">
+  <h1>Paperditor</h1>
+  <div class="version">Versão ${app.getVersion()}</div>
+  <div class="desc">Editor Markdown com Electron + React</div>
+  <div class="row">Desenvolvido por <a href="https://guisaldanha.com/">Guilherme Saldanha</a></div>
+  <div class="row"><a href="https://github.com/guisaldanha/paperditor">Projeto no GitHub</a></div>
+  <div class="versions">Electron ${process.versions.electron} · Chromium ${process.versions.chrome} · Node ${process.versions.node}</div>
+</body>
+</html>`;
+
+  aboutWindow = new BrowserWindow({
+    width: 360,
+    height: 340,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    parent: parent ?? undefined,
+    modal: !!parent,
+    show: false,
+    title: 'About Paperditor',
+    icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+    },
+  });
+  aboutWindow.setMenu(null);
+
+  aboutWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  aboutWindow.webContents.on('will-navigate', (event, url) => {
+    event.preventDefault();
+    shell.openExternal(url);
+  });
+
+  aboutWindow.once('ready-to-show', () => aboutWindow?.show());
+  aboutWindow.on('closed', () => {
+    aboutWindow = null;
+  });
+
+  aboutWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+}
+
 function createMenu() {
   const template: MenuItemConstructorOptions[] = [
     {
@@ -149,6 +237,15 @@ function createMenu() {
         { role: 'zoomOut' },
         { type: 'separator' },
         { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About Paperditor',
+          click: () => showAboutDialog(),
+        },
       ],
     },
   ];

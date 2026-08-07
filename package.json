@@ -1,8 +1,8 @@
 {
   "name": "paperditor",
-  "version": "0.0.0-dev0",
+  "version": "1.2.0",
   "description": "Editor Markdown com Electron + React",
-  "author": "Paperditor Contributors",
+  "author": "Guilherme Saldanha",
   "license": "MIT",
   "private": false,
   "type": "module",

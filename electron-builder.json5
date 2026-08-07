@@ -44,12 +44,13 @@
         "arch": [
           "x64"
         ]
+      },
+      {
+        "target": "appx",
+        "arch": [
+          "x64"
+        ]
       }
-      // Depois de reservar o nome no Partner Center e preencher identityName/publisher
-      // abaixo com os valores reais, adicione aqui: { "target": "appx", "arch": ["x64"] }
-      // Deixado de fora por enquanto de propósito — com identityName/publisher placeholder
-      // isso quebraria o build da Microsoft Store sem quebrar o NSIS, mas não faz sentido
-      // gerar um pacote MSIX que não pode ser submetido ainda.
     ],
     "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
   },
@@ -65,8 +66,8 @@
   // @see https://www.electron.build/docs/appx/
   "appx": {
     "applicationId": "Paperditor",
-    "identityName": "TODO-preencher-apos-reservar-nome-no-Partner-Center",
-    "publisher": "TODO-preencher-com-o-Publisher-CN-do-Partner-Center",
+    "identityName": "GuilhermeSaldanha.Paperditor",
+    "publisher": "CN=433358B9-1FAE-474A-89FA-476A3C1372E1",
     "publisherDisplayName": "Guilherme Saldanha",
     "displayName": "Paperditor"
   },
