@@ -189,6 +189,7 @@ function App() {
   const footnoteDefsRef = useRef<Map<string, string>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sourceWrapRef = useRef<HTMLDivElement>(null);
+  const readingViewRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const pendingSourceSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const pendingVisualFocusRef = useRef(false);
@@ -388,6 +389,17 @@ function App() {
     return result === 'discard';
   }, [isDirty, handleSave]);
 
+  // Ao trocar de documento (Novo/Abrir), o scroll do modo/container ativo no momento
+  // fica onde estava no documento anterior — o navegador não reseta isso sozinho ao
+  // trocar o conteúdo. Zera os 3 scrollers possíveis (html no modo Visual, .reading-view
+  // no modo Reading, textarea no modo Source); os que não se aplicam ao modo atual
+  // simplesmente não têm efeito.
+  const resetScroll = useCallback(() => {
+    window.scrollTo(0, 0);
+    if (readingViewRef.current) readingViewRef.current.scrollTop = 0;
+    if (textareaRef.current) textareaRef.current.scrollTop = 0;
+  }, []);
+
   const handleNew = useCallback(async () => {
     const canProceed = await checkUnsaved();
     if (!canProceed) return;
@@ -401,8 +413,9 @@ function App() {
     setMarkdownContent(initialMarkdownContent);
     setFilePath(null);
     setIsDirty(false);
+    resetScroll();
     window.electronAPI?.ipcRenderer.invoke('file:new');
-  }, [checkUnsaved, editor]);
+  }, [checkUnsaved, editor, resetScroll]);
 
   const openFileContent = useCallback((content: string, path: string) => {
     if (!editor) return;
@@ -414,7 +427,8 @@ function App() {
     setMarkdownContent(content);
     setFilePath(path);
     setIsDirty(false);
-  }, [editor]);
+    resetScroll();
+  }, [editor, resetScroll]);
 
   const handleOpen = useCallback(async () => {
     const canProceed = await checkUnsaved();
@@ -782,7 +796,7 @@ function App() {
         {isReadingMode ? (
           <div className="reading-layout">
             {showToc && <Toc editor={editor} slugify={slugify} />}
-            <div className="reading-view" onClick={handleEditorClick}>
+            <div className="reading-view" ref={readingViewRef} onClick={handleEditorClick}>
               <EditorContent editor={editor} />
             </div>
           </div>
