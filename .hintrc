@@ -1,0 +1,6 @@
+{
+  "extends": ["development"],
+  "browserslist": [
+    "Chrome >= 121"
+  ]
+}
