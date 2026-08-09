@@ -42,7 +42,7 @@ function getLaunchIntent(argv: string[]): LaunchIntent {
       mode = 'editor';
       continue;
     }
-    if (!arg.startsWith('-') && /\.(md|markdown)$/i.test(arg) && fs.existsSync(arg)) {
+    if (!arg.startsWith('-') && /\.(md|markdown|html?)$/i.test(arg) && fs.existsSync(arg)) {
       filePath = arg;
     }
   }
@@ -357,6 +357,7 @@ ipcMain.handle('dialog:openFile', async (event) => {
     properties: ['openFile'],
     filters: [
       { name: 'Markdown', extensions: ['md', 'markdown'] },
+      { name: 'HTML', extensions: ['html', 'htm'] },
       { name: 'All files', extensions: ['*'] },
     ],
   });
@@ -372,10 +373,14 @@ ipcMain.handle('dialog:openFile', async (event) => {
   return { content, path: filePath };
 });
 
-ipcMain.handle('dialog:saveFile', async (event, { content, path: filePathArg }) => {
+ipcMain.handle('dialog:saveFile', async (event, { content, path: filePathArg, forceDialog }) => {
   const win = BrowserWindow.fromWebContents(event.sender)!;
   const state = windowStates.get(win.id)!;
-  let targetPath = filePathArg || state.currentFilePath;
+  // "Save As" manda forceDialog:true — precisa sempre abrir o diálogo, mesmo já
+  // havendo um arquivo aberto. Sem essa flag, `filePathArg || state.currentFilePath`
+  // cai de volta pro caminho já aberto e "Save As" acaba se comportando como "Save"
+  // (sobrescreve o arquivo original em silêncio, sem nunca mostrar o diálogo).
+  let targetPath = forceDialog ? null : (filePathArg || state.currentFilePath);
 
   if (!targetPath) {
     const result = await dialog.showSaveDialog(win, {

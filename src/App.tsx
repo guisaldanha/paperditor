@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { emojify } from 'node-emoji';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
+import type { JSONContent } from '@tiptap/core';
 import { TextSelection } from '@tiptap/pm/state';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import StarterKit from '@tiptap/starter-kit';
@@ -10,7 +11,7 @@ import Highlight from '@tiptap/extension-highlight';
 import SuperscriptBase from '@tiptap/extension-superscript';
 import Subscript from '@tiptap/extension-subscript';
 import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
+import ImageBase from '@tiptap/extension-image';
 import { Table } from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
@@ -19,6 +20,7 @@ import TextAlign from '@tiptap/extension-text-align';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import CodeBlockWithCopy from './extensions/CodeBlockWithCopy';
+import DivBlock from './extensions/DivBlock';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import UniqueID from '@tiptap/extension-unique-id';
 import Toolbar from './components/Toolbar';
@@ -31,6 +33,46 @@ import './App.css';
 const Superscript = SuperscriptBase.extend({
   renderMarkdown(node: { content?: unknown[] }, { renderChildren }: { renderChildren: (c: unknown[]) => string }) {
     return `<sup>${renderChildren(node.content ?? [])}</sup>`;
+  },
+});
+
+// Extend Image: quando width/height estão definidos, serializa como <img> HTML em vez
+// de ![alt](src). Sintaxe markdown padrão não tem onde guardar dimensões — sem isso,
+// qualquer imagem redimensionada (ex: um logo com width="320") perde o tamanho no
+// primeiro round-trip por markdown. Imagens sem dimensão continuam saindo como
+// ![]() normal (mais legível no arquivo .md).
+type ImageMarkdownAttrs = { src?: string | null; alt?: string | null; title?: string | null; width?: number | string | null; height?: number | string | null };
+type MarkdownMark = { type: string; attrs?: { href?: string | null; title?: string | null } };
+const Image = ImageBase.extend({
+  renderMarkdown(
+    node: { attrs?: ImageMarkdownAttrs; marks?: MarkdownMark[] },
+    _helpers,
+    context?: { previousNode?: { marks?: MarkdownMark[] } | null },
+  ) {
+    const { src, alt, title, width, height } = node.attrs ?? {};
+    const rendered = width || height
+      ? `<img ${[
+          `src="${src ?? ''}"`,
+          alt ? `alt="${alt}"` : null,
+          title ? `title="${title}"` : null,
+          width ? `width="${width}"` : null,
+          height ? `height="${height}"` : null,
+        ].filter(Boolean).join(' ')} />`
+      : (title ? `![${alt ?? ''}](${src ?? ''} "${title}")` : `![${alt ?? ''}](${src ?? ''})`);
+
+    // @tiptap/markdown só reabre uma mark num nó não-textual (imagem) se ela já
+    // estava "ativa" vinda de um texto anterior no mesmo parágrafo — nunca abre
+    // uma mark que começa exatamente no nó da imagem. Isso faz imagens dentro de
+    // um <a> (badge clicável, botão de download) perderem o link ao salvar.
+    // Como recebemos `node.marks` aqui, fechamos essa lacuna manualmente.
+    const linkMark = node.marks?.find((mark) => mark.type === 'link');
+    const linkAlreadyOpen = context?.previousNode?.marks?.some((mark) => mark.type === 'link');
+    if (linkMark && !linkAlreadyOpen) {
+      const href = linkMark.attrs?.href ?? '';
+      const linkTitle = linkMark.attrs?.title ?? '';
+      return linkTitle ? `[${rendered}](${href} "${linkTitle}")` : `[${rendered}](${href})`;
+    }
+    return rendered;
   },
 });
 
@@ -88,6 +130,184 @@ function postprocessFootnotes(md: string, defs: Map<string, string>): string {
 // Converte shortcodes :emoji_name: em caracteres Unicode reais
 // Preserva shortcodes que não existem (ex: :custom:) sem modificar
 const preprocessEmojis = (md: string): string => emojify(md, { fallback: (code) => `:${code}:` });
+
+// ── Blocos <div align="..."> ────────────────────────────────────────────────
+// O parser de markdown (marked, usado pelo @tiptap/markdown) trata um <div align="...">
+// não fechado na mesma linha como HTML "solto" no estilo GitHub: o bloco HTML termina
+// na primeira linha em branco, e tudo depois disso (imagem/negrito em sintaxe
+// markdown, ou tags HTML soltas) vira blocos de nível superior independentes — até
+// sobrar só o `</div>` isolado como outro bloco HTML solto no fim. É exatamente essa
+// fragmentação que permite sintaxe markdown funcionar DENTRO de um <div> no GitHub: se
+// em vez disso a gente tentasse manter o <div> inteiro como um bloco HTML único e jogar
+// pra um parser de HTML puro, qualquer sintaxe markdown lá dentro (![](), **texto**)
+// vira texto literal — um parser de HTML não entende sintaxe markdown (foi exatamente
+// esse o bug: ao reabrir/alternar Source↔Visual um arquivo já salvo pelo Paperditor,
+// cujo conteúdo dentro da div já é sintaxe markdown gerada por nós mesmos, o texto
+// virava escapado tipo "\[Paperditor\]\(...\)" a cada rodada).
+//
+// A estratégia certa: ANTES do parse, substitui só as tags <div align="..."> / </div>
+// por marcadores de texto simples (que o marked trata como parágrafos comuns, sem
+// nenhum significado especial) — o conteúdo entre elas passa pelo parser de markdown
+// normal, sem nenhuma interferência nossa. DEPOIS do parse (ver regroupDivMarkers),
+// reagrupamos os nós de nível superior: tudo entre um marcador de abertura e o de
+// fechamento correspondente vira filho de um nó DivBlock (ver extensions/DivBlock.ts).
+const DIV_MARKER_OPEN_PREFIX = 'PAPERDITOR_DIVBLOCK_OPEN:';
+const DIV_MARKER_CLOSE = 'PAPERDITOR_DIVBLOCK_CLOSE';
+
+function substituteDivMarkers(segment: string): string {
+  const DIV_TAG_RE = /<div\b([^>]*)>|<\/div\s*>/gi;
+  const tags: { index: number; length: number; closing: boolean; align: string | false }[] = [];
+  let tagMatch: RegExpExecArray | null;
+  while ((tagMatch = DIV_TAG_RE.exec(segment)) !== null) {
+    const closing = tagMatch[0].startsWith('</');
+    let align: string | false = false;
+    if (!closing) {
+      const attrs = tagMatch[1] ?? '';
+      const alignAttr = /\balign\s*=\s*"([^"]+)"|\balign\s*=\s*'([^']+)'/i.exec(attrs);
+      const styleAttr = /\bstyle\s*=\s*"([^"]*)"|\bstyle\s*=\s*'([^']*)'/i.exec(attrs);
+      const styleValue = styleAttr ? (styleAttr[1] ?? styleAttr[2] ?? '') : '';
+      const styleMatch = /text-align:\s*(left|center|right|justify)/i.exec(styleValue);
+      const value = (alignAttr ? (alignAttr[1] ?? alignAttr[2]) : (styleMatch?.[1] ?? '')).toLowerCase();
+      align = ['left', 'center', 'right', 'justify'].includes(value) ? value : false;
+    }
+    tags.push({ index: tagMatch.index, length: tagMatch[0].length, closing, align });
+  }
+  if (tags.length === 0) return segment;
+
+  // Só substitui divs que declaram alinhamento — qualquer outro <div> fica intocado,
+  // não empilha e seu conteúdo continua "transparente" como sempre foi (mesma regra
+  // do parseDOM do DivBlock: não mexe no que não é nosso).
+  const replacements: { index: number; length: number; text: string }[] = [];
+  const openStack: number[] = [];
+  for (let i = 0; i < tags.length; i += 1) {
+    const tag = tags[i];
+    if (!tag.closing) {
+      if (tag.align) openStack.push(i);
+    } else if (openStack.length > 0) {
+      const openTag = tags[openStack.pop()!];
+      // Força linhas em branco ao redor do marcador, mesmo que a tag original não
+      // tivesse nenhuma (ex: `<div align="center">\n  <img .../>`, sem separação —
+      // padrão comum quando o div usa tags HTML em vez de sintaxe markdown). Sem
+      // isso, o marcador se funde com a linha seguinte num único parágrafo do marked,
+      // e regroupDivMarkers nunca reconhece esse parágrafo como um marcador isolado.
+      replacements.push({ index: openTag.index, length: openTag.length, text: `\n\n${DIV_MARKER_OPEN_PREFIX}${openTag.align}\n\n` });
+      replacements.push({ index: tag.index, length: tag.length, text: `\n\n${DIV_MARKER_CLOSE}\n\n` });
+    }
+  }
+  if (replacements.length === 0) return segment;
+
+  // Cada marcador já carrega sua própria linha em branco (\n\n) antes e depois. Se o
+  // texto original ao redor da tag JÁ tinha uma linha em branco ali (comum: é
+  // exatamente o formato que o nosso próprio serializer produz — ver
+  // DivBlock.renderMarkdown), sem isto as duas se somariam a cada rodada Source↔Visual,
+  // acumulando parágrafos vazios (linhas "&nbsp;") no arquivo a cada alternância.
+  const stripTrailingBlankLines = (text: string) => text.replace(/(\r?\n[ \t]*)+$/, '');
+  const stripLeadingBlankLines = (text: string) => text.replace(/^(\r?\n[ \t]*)+/, '');
+
+  let result = '';
+  let cursor = 0;
+  for (const r of replacements) {
+    let chunk = segment.slice(cursor, r.index);
+    if (result !== '') chunk = stripLeadingBlankLines(chunk);
+    result += stripTrailingBlankLines(chunk);
+    result += r.text;
+    cursor = r.index + r.length;
+  }
+  result += stripLeadingBlankLines(segment.slice(cursor));
+  return result;
+}
+
+function preprocessDivBlocks(md: string): string {
+  // Não mexe dentro de blocos de código cercados (``` ou ~~~) — só processa o que
+  // está fora deles, remontando o texto na mesma ordem.
+  const fenceRe = /^(```|~~~)[^\r\n]*\r?\n[\s\S]*?\r?\n\1[ \t]*$/gm;
+  let result = '';
+  let cursor = 0;
+  let m: RegExpExecArray | null;
+  while ((m = fenceRe.exec(md)) !== null) {
+    result += substituteDivMarkers(md.slice(cursor, m.index));
+    result += m[0];
+    cursor = m.index + m[0].length;
+  }
+  result += substituteDivMarkers(md.slice(cursor));
+  return result;
+}
+
+// Roda DEPOIS do parse (ver preprocessDivBlocks): junta os marcadores inseridos antes
+// do parse em nós DivBlock de verdade, usando uma pilha para lidar com divs aninhadas.
+// Tipos de nó que o parser de markdown às vezes solta direto no nível superior (ex:
+// uma linha só com `![alt](src)` vira um nó "image" sozinho, sem parágrafo em volta).
+// No nível do documento isso passa despercebido, mas o DivBlock exige conteúdo de
+// bloco (content: 'block+') — sem embrulhar, "Invalid content for node divBlock".
+const INLINE_NODE_TYPES = new Set(['image', 'text', 'hardBreak']);
+
+function ensureBlockNode(node: JSONContent): JSONContent {
+  return INLINE_NODE_TYPES.has(node.type ?? '') ? { type: 'paragraph', content: [node] } : node;
+}
+
+function regroupDivMarkers(nodes: JSONContent[]): JSONContent[] {
+  const OPEN_RE = /^PAPERDITOR_DIVBLOCK_OPEN:(left|center|right|justify)$/;
+
+  const markerText = (node: JSONContent): string | null => {
+    if (node.type !== 'paragraph' || node.content?.length !== 1) return null;
+    const child = node.content[0];
+    return child.type === 'text' && typeof child.text === 'string' ? child.text : null;
+  };
+
+  const result: JSONContent[] = [];
+  const stack: { align: string; content: JSONContent[] }[] = [];
+  for (const node of nodes) {
+    const text = markerText(node);
+    const openMatch = text ? OPEN_RE.exec(text) : null;
+    if (openMatch) {
+      stack.push({ align: openMatch[1], content: [] });
+      continue;
+    }
+    if (text === DIV_MARKER_CLOSE && stack.length > 0) {
+      const finished = stack.pop()!;
+      const divNode: JSONContent = { type: 'divBlock', attrs: { align: finished.align }, content: finished.content };
+      (stack.length > 0 ? stack[stack.length - 1].content : result).push(divNode);
+      continue;
+    }
+    if (stack.length > 0) {
+      stack[stack.length - 1].content.push(ensureBlockNode(node));
+    } else {
+      result.push(node);
+    }
+  }
+  // Abertura sem fechamento correspondente (entrada malformada) — devolve o conteúdo
+  // solto em vez de descartá-lo.
+  while (stack.length > 0) {
+    const leftover = stack.pop()!;
+    (stack.length > 0 ? stack[stack.length - 1].content : result).push(...leftover.content);
+  }
+  return result;
+}
+
+// Faz o parse de markdown → JSON (via o próprio parser do @tiptap/markdown) e reagrupa
+// os blocos <div align="..."> nos nós DivBlock correspondentes. Substitui a chamada
+// direta de `editor.commands.setContent(text, { contentType: 'markdown' })` nos pontos
+// que precisam reconhecer divs — o comando de conveniência do Markdown extension não
+// dá gancho para reagrupar o JSON entre o parse e o setContent.
+function parseMarkdownWithDivBlocks(editor: Editor, md: string): JSONContent {
+  const json = editor.markdown!.parse(preprocessDivBlocks(md));
+  return { ...json, content: regroupDivMarkers(json.content ?? []) };
+}
+
+// Sanitiza um arquivo .html/.htm aberto diretamente (não markdown com HTML embutido,
+// que passa pelo pipeline de markdown acima) antes de entregá-lo ao Tiptap como
+// contentType: 'html'. O DOMParser usado por baixo (@tiptap/core → elementFromString)
+// já não executa scripts em documentos criados via `parseFromString` — é garantido pela
+// spec, não importa se o schema reconhece <script> ou não. Removemos aqui mesmo assim
+// por dois motivos: (1) deixa essa garantia explícita e auditável no nosso próprio
+// código, em vez de depender de um detalhe de implementação de uma lib; (2) sem isso,
+// tags que o schema não reconhece (como <script>/<style>) acabam preservadas como texto
+// literal, mostrando código-fonte cru dentro do documento.
+function preprocessHtmlForOpen(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '');
+}
 
 // Gera slug a partir de texto (preserva acentos do português)
 const slugify = (text: string) =>
@@ -186,6 +406,21 @@ function App() {
   const findBarRef = useRef<FindBarHandle>(null);
   const showFindBarRef = useRef(false); // ref para evitar stale closure no keydown handler
   const suppressDirty = useRef(true); // começa true para ignorar o onUpdate inicial do Tiptap
+
+  // Reativa o rastreamento de "alterado" só no próximo tick (macrotask), não
+  // sincronamente logo após o setContent. Motivo: com a view do Tiptap montada e
+  // editável (modo Editor visual — não acontece no Source, que não usa essa view, nem
+  // no Reading, que é somente-leitura), substituir o documento inteiro enquanto a
+  // seleção do navegador ainda aponta pro DOM antigo pode disparar uma correção de
+  // seleção/DOM assíncrona que o ProseMirror interpreta como uma edição — e essa
+  // atualização chega DEPOIS do `suppressDirty.current = false` síncrono, marcando o
+  // arquivo como alterado sem o usuário ter feito nada. Mesma classe de bug do
+  // onCreate (ver comentário abaixo), mesma solução: adiar a liberação do supressor.
+  const releaseSuppressDirty = useCallback(() => {
+    setTimeout(() => {
+      suppressDirty.current = false;
+    }, 0);
+  }, []);
   const footnoteDefsRef = useRef<Map<string, string>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sourceWrapRef = useRef<HTMLDivElement>(null);
@@ -215,7 +450,15 @@ function App() {
           rel: null,
         },
       }),
-      Image,
+      // inline: true — sem isso, Image vira nó de bloco (padrão do Tiptap), e o
+      // parser markdown (@tiptap/markdown) quebra ao encontrar uma imagem dentro de
+      // um parágrafo (ex: badge com link "[![alt](img)](url)", ou qualquer imagem
+      // inline misturada com texto): gera um parágrafo com uma imagem-bloco como
+      // filha, que viola o schema. Isso não falha na hora do parse — só estoura
+      // depois (ex: RangeError "Invalid content for node type paragraph" quando o
+      // UniqueID tenta atribuir um id ao parágrafo), deixando o editor sem abrir
+      // o arquivo e sem erro visível pro usuário.
+      Image.configure({ inline: true }),
       Table.configure({
         resizable: true,
       }),
@@ -230,6 +473,7 @@ function App() {
         nested: true,
       }),
       CodeBlockWithCopy,
+      DivBlock,
       HorizontalRule,
       Placeholder.configure({
         placeholder: 'Start typing your markdown here...',
@@ -371,6 +615,7 @@ function App() {
     const result = await window.electronAPI.ipcRenderer.invoke('dialog:saveFile', {
       content,
       path: null,
+      forceDialog: true,
     }) as string | null;
     if (result) {
       setFilePath(result);
@@ -409,26 +654,39 @@ function App() {
     footnoteDefsRef.current.clear();
     suppressDirty.current = true;
     if (editor) editor.commands.setContent(initialMarkdownContent, { contentType: 'markdown' });
-    suppressDirty.current = false;
+    releaseSuppressDirty();
     setMarkdownContent(initialMarkdownContent);
     setFilePath(null);
     setIsDirty(false);
     resetScroll();
     window.electronAPI?.ipcRenderer.invoke('file:new');
-  }, [checkUnsaved, editor, resetScroll]);
+  }, [checkUnsaved, editor, resetScroll, releaseSuppressDirty]);
 
   const openFileContent = useCallback((content: string, path: string) => {
     if (!editor) return;
     suppressDirty.current = true;
-    const withEmoji = preprocessEmojis(content);
-    const processed = preprocessFootnotes(withEmoji, footnoteDefsRef.current);
-    editor.commands.setContent(processed, { contentType: 'markdown' });
-    suppressDirty.current = false;
-    setMarkdownContent(content);
-    setFilePath(path);
+    const isHtml = /\.html?$/i.test(path);
+    if (isHtml) {
+      editor.commands.setContent(preprocessHtmlForOpen(content), { contentType: 'html' });
+    } else {
+      const withEmoji = preprocessEmojis(content);
+      const processed = preprocessFootnotes(withEmoji, footnoteDefsRef.current);
+      editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
+    }
+    releaseSuppressDirty();
+    if (isHtml) {
+      // HTML importado não é gravado de volta no .html original (isso sobrescreveria
+      // HTML com markdown) — vira um documento markdown novo, "sem título", como em
+      // "Novo": salvar pede um destino .md novo em vez de reusar o caminho do HTML.
+      setMarkdownContent(getMarkdownFromEditor());
+      setFilePath(null);
+    } else {
+      setMarkdownContent(content);
+      setFilePath(path);
+    }
     setIsDirty(false);
     resetScroll();
-  }, [editor, resetScroll]);
+  }, [editor, resetScroll, releaseSuppressDirty, getMarkdownFromEditor]);
 
   const handleOpen = useCallback(async () => {
     const canProceed = await checkUnsaved();
@@ -471,9 +729,10 @@ function App() {
   const syncEditorFromMarkdownIfNeeded = useCallback(() => {
     if (!editor || !isMarkdownMode) return;
     suppressDirty.current = true;
-    editor.commands.setContent(preprocessFootnotes(markdownContent, footnoteDefsRef.current), { contentType: 'markdown' });
-    suppressDirty.current = false;
-  }, [editor, isMarkdownMode, markdownContent]);
+    const processed = preprocessFootnotes(markdownContent, footnoteDefsRef.current);
+    editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
+    releaseSuppressDirty();
+  }, [editor, isMarkdownMode, markdownContent, releaseSuppressDirty]);
 
   const handleExportPdf = useCallback(async () => {
     if (!window.electronAPI || !editor) return;
@@ -518,14 +777,14 @@ function App() {
     suppressDirty.current = true;
     const withEmoji = preprocessEmojis(markdownContent);
     const processed = preprocessFootnotes(withEmoji, footnoteDefsRef.current);
-    editor.commands.setContent(processed, { contentType: 'markdown' });
-    suppressDirty.current = false;
+    editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
+    releaseSuppressDirty();
 
     const breakpoints = buildPositionMap(editor.state.doc, markdownContent);
     applySelectionFromTextOffsets(editor, breakpoints, selStart, selEnd);
     setIsMarkdownMode(false);
     localStorage.setItem('editorMode', 'visual');
-  }, [editor, markdownContent]);
+  }, [editor, markdownContent, releaseSuppressDirty]);
 
   const handleToggleMode = useCallback(() => {
     if (isReadingMode) return; // alternância Editor/Source não se aplica no modo Reading
