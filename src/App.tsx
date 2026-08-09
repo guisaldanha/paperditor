@@ -296,6 +296,49 @@ function preprocessLinkedImages(md: string): string {
   return result;
 }
 
+// <sub>/<sup> citadas como texto (ex: "adicionar suporte a tags <sub>" numa entrada
+// de changelog) — sem fechamento correspondente, ou como par vazio "<sub></sub>" —
+// não são um subscript/superscript de verdade, mas @tiptap/markdown trata os dois
+// nomes como HTML reconhecida (por causa do parseDOM das marks Subscript/Superscript,
+// ver extends no topo do arquivo) e tenta parsear via generateJSON. Quando não sobra
+// conteúdo pra aplicar a mark, o parser da lib devolve um nó "paragraph" solto dentro
+// do content de outro parágrafo; o schema rejeita ("Invalid content for node type
+// paragraph") e o setContent inteiro falha, deixando o editor sem abrir o arquivo —
+// mesma classe do bug do commit 7fecb28 (Image sem inline:true), gatilho diferente.
+// Escapamos qualquer <sub>/<sup> que não abra um par não-vazio pra texto literal
+// antes do parse, pra nunca chegar nesse caminho.
+const SCRIPT_TAG_RE = /<(sub|sup)>([\s\S]*?)<\/\1>|<(sub|sup)>|<\/(sub|sup)>/gi;
+
+function escapeBareScriptTags(segment: string): string {
+  return segment.replace(
+    SCRIPT_TAG_RE,
+    (match: string, pairTag?: string, inner?: string, loneOpenTag?: string, loneCloseTag?: string) => {
+      if (pairTag !== undefined) {
+        if (!inner || !inner.trim()) {
+          return `&lt;${pairTag}&gt;&lt;/${pairTag}&gt;`;
+        }
+        return match;
+      }
+      const tag = loneOpenTag ?? loneCloseTag;
+      return loneCloseTag !== undefined ? `&lt;/${tag}&gt;` : `&lt;${tag}&gt;`;
+    },
+  );
+}
+
+function preprocessBareScriptTags(md: string): string {
+  const fenceRe = /^(```|~~~)[^\r\n]*\r?\n[\s\S]*?\r?\n\1[ \t]*$/gm;
+  let result = '';
+  let cursor = 0;
+  let m: RegExpExecArray | null;
+  while ((m = fenceRe.exec(md)) !== null) {
+    result += escapeBareScriptTags(md.slice(cursor, m.index));
+    result += m[0];
+    cursor = m.index + m[0].length;
+  }
+  result += escapeBareScriptTags(md.slice(cursor));
+  return result;
+}
+
 function preprocessDivBlocks(md: string): string {
   // Não mexe dentro de blocos de código cercados (``` ou ~~~) — só processa o que
   // está fora deles, remontando o texto na mesma ordem.
@@ -369,7 +412,7 @@ function regroupDivMarkers(nodes: JSONContent[]): JSONContent[] {
 // que precisam reconhecer divs — o comando de conveniência do Markdown extension não
 // dá gancho para reagrupar o JSON entre o parse e o setContent.
 function parseMarkdownWithDivBlocks(editor: Editor, md: string): JSONContent {
-  const json = editor.markdown!.parse(preprocessDivBlocks(preprocessLinkedImages(md)));
+  const json = editor.markdown!.parse(preprocessDivBlocks(preprocessLinkedImages(preprocessBareScriptTags(md))));
   return { ...json, content: regroupDivMarkers(json.content ?? []) };
 }
 
@@ -750,7 +793,20 @@ function App() {
     } else {
       const withEmoji = preprocessEmojis(content);
       const processed = preprocessFootnotes(withEmoji, footnoteDefsRef.current);
-      editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
+      try {
+        editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
+      } catch (error) {
+        // Rede de segurança: se o markdown produzir uma árvore que o schema do
+        // ProseMirror rejeita (ex: HTML inline reconhecida mas malformada — ver
+        // preprocessBareScriptTags acima —, ou qualquer outro caso não previsto),
+        // setContent lança e a transação nunca é aplicada: o editor fica travado no
+        // documento anterior, sem indicar erro nenhum pro usuário (é assim que o bug
+        // original do commit 7fecb28 se manifestava, e por que ele "voltou" com um
+        // gatilho diferente). Preferimos cair pro modo Source, que só precisa de uma
+        // string e nunca falha, a deixar o arquivo "sem abrir" silenciosamente.
+        console.error('Falha ao converter markdown para o editor WYSIWYG, caindo para o modo Source:', error);
+        setIsMarkdownMode(true);
+      }
     }
     releaseSuppressDirty();
     if (isHtml) {
@@ -1073,7 +1129,6 @@ function App() {
   useEffect(() => {
     handlersRef.current = { handleNew, handleOpen, handleSave, handleSaveAs, handleExportPdf, handlePrint, checkUnsaved };
   });
-
 
   // Subscrições de menu e fechar janela (executado uma vez)
   useEffect(() => {
