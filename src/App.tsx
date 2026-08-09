@@ -9,7 +9,7 @@ import { Markdown } from '@tiptap/markdown';
 import Placeholder from '@tiptap/extension-placeholder';
 import Highlight from '@tiptap/extension-highlight';
 import SuperscriptBase from '@tiptap/extension-superscript';
-import Subscript from '@tiptap/extension-subscript';
+import SubscriptBase from '@tiptap/extension-subscript';
 import Link from '@tiptap/extension-link';
 import ImageBase from '@tiptap/extension-image';
 import { Table } from '@tiptap/extension-table';
@@ -33,6 +33,15 @@ import './App.css';
 const Superscript = SuperscriptBase.extend({
   renderMarkdown(node: { content?: unknown[] }, { renderChildren }: { renderChildren: (c: unknown[]) => string }) {
     return `<sup>${renderChildren(node.content ?? [])}</sup>`;
+  },
+});
+
+// Idem para Subscript: sem renderMarkdown próprio, @tiptap/markdown não tem serializador
+// padrão pra essa mark — a abertura/fechamento viram string vazia (ver getMarkOpening/
+// getMarkClosing em MarkdownManager.ts), então o texto sobrevive mas a tag <sub> some ao salvar.
+const Subscript = SubscriptBase.extend({
+  renderMarkdown(node: { content?: unknown[] }, { renderChildren }: { renderChildren: (c: unknown[]) => string }) {
+    return `<sub>${renderChildren(node.content ?? [])}</sub>`;
   },
 });
 
@@ -217,6 +226,76 @@ function substituteDivMarkers(segment: string): string {
   return result;
 }
 
+// Uma imagem dentro de um link (badge clicável tipo "[![alt](img)](url)", ou o clássico
+// botão de download `<a href="..."><img .../></a>`) perde o link ao ser aberta: o parser
+// de marks do @tiptap/markdown (applyMarkToContent, em MarkdownManager.ts) só reabre uma
+// mark — como link — em nós de TEXTO; num nó não-textual como imagem ele nunca aplica a
+// mark, só tenta recursar em `node.content` (que imagem não tem). O reopen manual feito em
+// Image.renderMarkdown (acima) não ajuda aqui: ele reabre a mark ao SERIALIZAR, mas o link
+// já chega perdido do PARSE, antes de existir `node.marks` pra reabrir.
+// Contornamos normalizando ANTES do parse: convertemos qualquer forma de "imagem num link"
+// (markdown aninhado ou HTML cru, possivelmente indentado/multi-linha) pra uma única tag
+// HTML `<a href="..."><img .../></a>` numa linha só. Esse caminho passa pelo parser de DOM
+// de verdade (generateJSON, via parseHTMLToken) em vez do parser de marks do @tiptap/markdown
+// — e o parser de DOM aplica marks a nós não-textuais corretamente (comportamento padrão do
+// ProseMirror). Uma linha só também evita que o `<img>` fique indentado o bastante pra ser
+// lido como bloco de código indentado pelo marked, outra forma de o link se perder.
+function escapeHtmlAttr(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
+const MD_LINKED_IMAGE_RE = /\[!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g;
+const MD_LINKED_HTML_IMG_RE = /\[(<img\b[^<>]*?\/?>)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g;
+const HTML_LINKED_IMG_RE = /<a\s+([^<>]*?)>\s*(<img\b[^<>]*?\/?>)\s*<\/a\s*>/gi;
+
+function normalizeLinkedImages(segment: string): string {
+  let out = segment.replace(
+    MD_LINKED_IMAGE_RE,
+    (_m, alt: string, imgSrc: string, imgTitle: string | undefined, href: string, linkTitle: string | undefined) => {
+      const imgAttrs = [
+        `src="${escapeHtmlAttr(imgSrc)}"`,
+        alt ? `alt="${escapeHtmlAttr(alt)}"` : null,
+        imgTitle ? `title="${escapeHtmlAttr(imgTitle)}"` : null,
+      ].filter(Boolean).join(' ');
+      const aAttrs = [
+        `href="${escapeHtmlAttr(href)}"`,
+        linkTitle ? `title="${escapeHtmlAttr(linkTitle)}"` : null,
+      ].filter(Boolean).join(' ');
+      return `<a ${aAttrs}><img ${imgAttrs}></a>`;
+    },
+  );
+  out = out.replace(
+    MD_LINKED_HTML_IMG_RE,
+    (_m, imgTag: string, href: string, linkTitle: string | undefined) => {
+      const aAttrs = [
+        `href="${escapeHtmlAttr(href)}"`,
+        linkTitle ? `title="${escapeHtmlAttr(linkTitle)}"` : null,
+      ].filter(Boolean).join(' ');
+      return `<a ${aAttrs}>${imgTag}</a>`;
+    },
+  );
+  out = out.replace(
+    HTML_LINKED_IMG_RE,
+    (_m, aAttrs: string, imgTag: string) => `<a ${aAttrs.trim().replace(/\s+/g, ' ')}>${imgTag}</a>`,
+  );
+  return out;
+}
+
+function preprocessLinkedImages(md: string): string {
+  // Não mexe dentro de blocos de código cercados — mesma lógica de preprocessDivBlocks.
+  const fenceRe = /^(```|~~~)[^\r\n]*\r?\n[\s\S]*?\r?\n\1[ \t]*$/gm;
+  let result = '';
+  let cursor = 0;
+  let m: RegExpExecArray | null;
+  while ((m = fenceRe.exec(md)) !== null) {
+    result += normalizeLinkedImages(md.slice(cursor, m.index));
+    result += m[0];
+    cursor = m.index + m[0].length;
+  }
+  result += normalizeLinkedImages(md.slice(cursor));
+  return result;
+}
+
 function preprocessDivBlocks(md: string): string {
   // Não mexe dentro de blocos de código cercados (``` ou ~~~) — só processa o que
   // está fora deles, remontando o texto na mesma ordem.
@@ -290,7 +369,7 @@ function regroupDivMarkers(nodes: JSONContent[]): JSONContent[] {
 // que precisam reconhecer divs — o comando de conveniência do Markdown extension não
 // dá gancho para reagrupar o JSON entre o parse e o setContent.
 function parseMarkdownWithDivBlocks(editor: Editor, md: string): JSONContent {
-  const json = editor.markdown!.parse(preprocessDivBlocks(md));
+  const json = editor.markdown!.parse(preprocessDivBlocks(preprocessLinkedImages(md)));
   return { ...json, content: regroupDivMarkers(json.content ?? []) };
 }
 
@@ -994,6 +1073,7 @@ function App() {
   useEffect(() => {
     handlersRef.current = { handleNew, handleOpen, handleSave, handleSaveAs, handleExportPdf, handlePrint, checkUnsaved };
   });
+
 
   // Subscrições de menu e fechar janela (executado uma vez)
   useEffect(() => {

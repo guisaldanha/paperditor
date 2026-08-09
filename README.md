@@ -1,24 +1,25 @@
+
+
 <div align="center">
-  <img src="public/logo.png" alt="Paperditor" width="320" />
 
-  <p><strong>A clean, distraction-free Markdown editor.</strong></p>
-  <p>Write beautifully. Stay focused. Own your files.</p>
+<img src="https://raw.githubusercontent.com/guisaldanha/paperditor/refs/heads/main/public/logo.png" alt="Paperditor" width="320" />
 
-  <p>
-    <img src="https://img.shields.io/badge/Windows-supported-blue?logo=windows" alt="Windows: supported" />
-    <img src="https://img.shields.io/badge/macOS-experimental-lightgrey?logo=apple" alt="macOS: experimental" />
-    <img src="https://img.shields.io/badge/Linux-experimental-lightgrey?logo=linux" alt="Linux: experimental" /><br>
-    <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT" />
-    <img src="https://img.shields.io/github/v/release/guisaldanha/paperditor?color=orange" alt="Version" />
-  </p>
+**A clean, distraction-free Markdown editor.**
 
-  <br/>
+Write beautifully. Stay focused. Own your files.
 
-  <a href="https://github.com/guisaldanha/paperditor/releases/latest">
-    <img src="public/download.png" alt="Download for Windows" height="150" />
-  </a>
+![Windows: supported](https://img.shields.io/badge/Windows-supported-blue?logo=windows) ![macOS: experimental](https://img.shields.io/badge/macOS-experimental-lightgrey?logo=apple) ![Linux: experimental](https://img.shields.io/badge/Linux-experimental-lightgrey?logo=linux)  
+![License: MIT](https://img.shields.io/badge/license-MIT-green) ![Version](https://img.shields.io/github/v/release/guisaldanha/paperditor?color=orange)
 
-  <br/><br/>
+  
+
+
+  [<img src="https://raw.githubusercontent.com/guisaldanha/paperditor/refs/heads/main/public/download.png" alt="Download for Windows" height="150" />](https://github.com/guisaldanha/paperditor/releases/latest)
+
+    
+  
+
+
 </div>
 
 ---
@@ -34,16 +35,14 @@ Built for developers, writers, and anyone who loves Markdown.
 ## 🖥️ Screenshots
 
 <div align="center">
-  <table>
-    <tr>
-      <td align="center"><strong>🌙 Dark Theme</strong></td>
-      <td align="center"><strong>☀️ Light Theme</strong></td>
-    </tr>
-    <tr>
-      <td><img src="public/print-dark-theme.png" alt="Dark Theme" width="480" /></td>
-      <td><img src="public/print-light-theme.png" alt="Light Theme" width="480" /></td>
-    </tr>
-  </table>
+
+
+|                                                                        |                                                                          |
+| :----------------------------------------------------------------------: | :------------------------------------------------------------------------: |
+| **🌙 Dark Theme**                                                      | **☀️ Light Theme**                                                       |
+| <img src="https://raw.githubusercontent.com/guisaldanha/paperditor/refs/heads/main/public/print-dark-theme.png" alt="Dark Theme" width="480" /> | <img src="https://raw.githubusercontent.com/guisaldanha/paperditor/refs/heads/main/public/print-light-theme.png" alt="Light Theme" width="480" /> |
+
+
 </div>
 
 ---
@@ -51,6 +50,7 @@ Built for developers, writers, and anyone who loves Markdown.
 ## 🚀 Features
 
 ### ✍️ Editing Experience
+
 - **WYSIWYG Markdown editing** — content renders live as you type, no split panes
 - **Three modes** — switch between rich WYSIWYG Editor, raw Markdown Source, and a read-only Reading view at any time
 - **Reading mode** — distraction-free, read-only rendering with syntax-highlighted code blocks (one-click copy button) and a collapsible table of contents
@@ -59,48 +59,56 @@ Built for developers, writers, and anyone who loves Markdown.
 - **Multi-window** — opening another file (via file association or a relaunch) always opens it in a new window, so you can work on several documents side by side
 
 ### 📝 Formatting Toolbar
-| Category | Supported |
-|---|---|
-| Headings | H1 · H2 · H3 · H4 · H5 · H6 |
-| Inline | **Bold** · *Italic* · ~~Strikethrough~~ · ==Highlight== · `Code` |
-| Script | Superscript · Subscript |
-| Lists | Bullet · Ordered · Task (checkbox) lists |
-| Blocks | Blockquote · Code block (syntax-highlighted) · Horizontal rule |
-| Links & Media | Hyperlinks · Inline images |
-| Tables | Insert table · Add/remove rows & columns · Toggle header row/column/cell |
-| Alignment | Left · Center · Right · Justify |
-| Extras | Footnotes · Emoji picker (categorized, searchable) |
+
+
+| Category          | Supported                                                                    |
+| ----------------- | ---------------------------------------------------------------------------- |
+| Headings          | H1 · H2 · H3 · H4 · H5 · H6                                                  |
+| Inline            | **Bold** · *Italic* · ~~Strikethrough~~ · ==Highlight== · `Code`             |
+| Script            | Superscript · Subscript                                                      |
+| Lists             | Bullet · Ordered · Task (checkbox) lists                                     |
+| Blocks            | Blockquote · Code block (syntax-highlighted) · Horizontal rule               |
+| Links &amp; Media | Hyperlinks · Inline images                                                   |
+| Tables            | Insert table · Add/remove rows &amp; columns · Toggle header row/column/cell |
+| Alignment         | Left · Center · Right · Justify                                              |
+| Extras            | Footnotes · Emoji picker (categorized, searchable)                           |
+
 
 ### 📁 File Operations
+
 - Open, Save, Save As `.md` files
 - **Export to PDF, HTML, or Word (.docx)** — available from the Reading tab
 - **Print** — send directly to your printer
 
 ### 🎨 Themes
+
 - **Light** and **Dark** themes — toggled with a single click, persisted across sessions
 
 ### 🔍 Find
+
 - Inline find bar (`Ctrl+F`) — search and jump through matches without leaving the editor or losing your place
 
 ---
 
 ## ⌨️ Keyboard Shortcuts
 
-| Action | Shortcut |
-|---|---|
-| New file | `Ctrl+N` |
-| Open file | `Ctrl+O` |
-| Save | `Ctrl+S` |
-| Save As | `Ctrl+Shift+S` |
-| Export PDF | `Ctrl+Shift+E` |
-| Print | `Ctrl+P` |
-| Find | `Ctrl+F` |
-| Bold | `Ctrl+B` |
-| Italic | `Ctrl+I` |
-| Undo | `Ctrl+Z` |
-| Redo | `Ctrl+Y` / `Ctrl+Shift+Z` |
-| Toggle Editor / Source | `Ctrl+'` |
-| Toggle fullscreen | `F11` |
+
+| Action                 | Shortcut                  |
+| ---------------------- | ------------------------- |
+| New file               | `Ctrl+N`                  |
+| Open file              | `Ctrl+O`                  |
+| Save                   | `Ctrl+S`                  |
+| Save As                | `Ctrl+Shift+S`            |
+| Export PDF             | `Ctrl+Shift+E`            |
+| Print                  | `Ctrl+P`                  |
+| Find                   | `Ctrl+F`                  |
+| Bold                   | `Ctrl+B`                  |
+| Italic                 | `Ctrl+I`                  |
+| Undo                   | `Ctrl+Z`                  |
+| Redo                   | `Ctrl+Y` / `Ctrl+Shift+Z` |
+| Toggle Editor / Source | `Ctrl+'`                  |
+| Toggle fullscreen      | `F11`                     |
+
 
 ---
 
@@ -111,9 +119,9 @@ Built for developers, writers, and anyone who loves Markdown.
 Download the latest Windows installer from the [Releases page](https://github.com/guisaldanha/paperditor/releases/latest) and run the `.exe` setup file.
 
 <div align="center">
-  <a href="https://github.com/guisaldanha/paperditor/releases/latest">
-    <img src="public/download.png" alt="Download for Windows" height="150" />
-  </a>
+
+[<img src="https://raw.githubusercontent.com/guisaldanha/paperditor/refs/heads/main/public/download.png" alt="Download for Windows" height="150" />](https://github.com/guisaldanha/paperditor/releases/latest)
+
 </div>
 
 #### macOS / Linux (experimental)
@@ -155,16 +163,18 @@ None of the installers are code-signed (no paid certificate), so your OS will wa
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Shell | [Electron](https://www.electronjs.org/) |
-| UI | [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
-| Editor Engine | [TipTap](https://tiptap.dev/) |
-| Markdown Parser | [@tiptap/markdown](https://tiptap.dev/docs/editor/extensions/functionality/markdown) |
-| Code Highlighting | [lowlight](https://github.com/wooorm/lowlight) |
-| Office Export | [html-to-docx](https://www.npmjs.com/package/html-to-docx) |
-| Bundler | [Vite](https://vitejs.dev/) |
-| Packaging | [electron-builder](https://www.electron.build/) |
+
+| Layer             | Technology                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| Shell             | [Electron](https://www.electronjs.org/)                                              |
+| UI                | [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)          |
+| Editor Engine     | [TipTap](https://tiptap.dev/)                                                        |
+| Markdown Parser   | [@tiptap/markdown](https://tiptap.dev/docs/editor/extensions/functionality/markdown) |
+| Code Highlighting | [lowlight](https://github.com/wooorm/lowlight)                                       |
+| Office Export     | [html-to-docx](https://www.npmjs.com/package/html-to-docx)                           |
+| Bundler           | [Vite](https://vitejs.dev/)                                                          |
+| Packaging         | [electron-builder](https://www.electron.build/)                                      |
+
 
 ---
 
@@ -176,7 +186,7 @@ Transparency is part of this project.
 
 Before running any software obtained from the Internet, it's good practice to perform an independent audit of the source code. This repository encourages that practice.
 
-[![Audit with ChatGPT](https://img.shields.io/badge/Audit-with%20ChatGPT-10A37F?style=for-the-badge&logo=openai&logoColor=white)](https://chatgpt.com/?q=Analyze%20this%20GitHub%20repository%3A%20https%3A%2F%2Fgithub.com%2Fguisaldanha%2Fpaperditor%0A%0APerform%20a%20complete%20security%20audit.%20Analyze%20all%20the%20source%20code%2C%20dependencies%2C%20scripts%2C%20GitHub%20Actions%20workflows%2C%20and%20configuration%20files.%20Identify%20any%20potentially%20malicious%20behavior%2C%20such%20as%20credential%20theft%2C%20hidden%20data%20exfiltration%2C%20remote%20code%20execution%2C%20automatic%20downloads%2C%20cryptocurrency%20mining%2C%20suspicious%20dependencies%2C%20or%20any%20other%20security%20risk.%20Present%20your%20findings%2C%20explain%20the%20identified%20risks%2C%20and%20state%20whether%20you%20consider%20it%20safe%20to%20run%20this%20project.)
+[![Audit with ChatGPT](https://img.shields.io/badge/Audit-with%20ChatGPT-10A37F?style=for-the-badge&logo=openai&logoColor=white)](https://chatgpt.com/?q=Analyze%20this%20GitHub%20repository%3A%20https%3A%2F%2Fgithub.com%2Fguisaldanha%2Fpaperditor%0A%0APerform%20a%20complete%20security%20audit.%20Analyze%20all%20the%20source%20code%2C%20dependencies%2C%20scripts%2C%20GitHub%20Actions%20workflows%2C%20and%20configuration%20files.%20Identify%20any%20potentially%20malicious%20behavior%2C%20such%20as%20credential%20theft%2C%20hidden%20data%20exfiltration%2C%20remote%20code%20execution%2C%20automatic%20downloads%2C%20cryptocurrency%20mining%2C%20suspicious%20dependencies%2C%20or%20any%20other%20security%20risk.%20Present%20your%20findings%2C%20explain%20the%20identified%20risks%2C%20and%20state%20whether%20you%20consider%20it%20safe%20to%20run%20this%20project.)  
 [![Audit with Claude](https://img.shields.io/badge/Audit-with%20Claude-D97757?style=for-the-badge&logo=claude&logoColor=white)](https://claude.ai/new?q=Analyze%20this%20GitHub%20repository%3A%20https%3A%2F%2Fgithub.com%2Fguisaldanha%2Fpaperditor%0A%0APerform%20a%20complete%20security%20audit.%20Analyze%20all%20the%20source%20code%2C%20dependencies%2C%20scripts%2C%20GitHub%20Actions%20workflows%2C%20and%20configuration%20files.%20Identify%20any%20potentially%20malicious%20behavior%2C%20such%20as%20credential%20theft%2C%20hidden%20data%20exfiltration%2C%20remote%20code%20execution%2C%20automatic%20downloads%2C%20cryptocurrency%20mining%2C%20suspicious%20dependencies%2C%20or%20any%20other%20security%20risk.%20Present%20your%20findings%2C%20explain%20the%20identified%20risks%2C%20and%20state%20whether%20you%20consider%20it%20safe%20to%20run%20this%20project.)
 
 <sub>💡 Trust in software should come from the ability to verify how it works, not just the reputation of whoever built it.</sub>
@@ -201,6 +211,7 @@ Ways to help:
 - ⭐ **Star the repository**
 - 🔁 **Share with other developers**
 - ☕ **[Buy me a coffee by clicking here](https://www.paypal.com/cgi-bin/webscr?cmd=_xclick&amp;business=guisaldanha@gmail.com&amp;item_name=Buy%20a%20coffee%20because%20Paperditor)  (PayPal)**
+
 ---
 
 ## 📜 License
@@ -210,5 +221,8 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 ---
 
 <div align="center">
-  Made with ☕ by <a href="https://guisaldanha.com">Guilherme Saldanha</a>
+
+Made with ☕ by [Guilherme Saldanha](https://guisaldanha.com)
+
 </div>
+
