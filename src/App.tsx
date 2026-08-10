@@ -717,35 +717,50 @@ function App() {
 
   const handleSave = useCallback(async (): Promise<boolean> => {
     if (!window.electronAPI) return false;
-    const content = getContentToSave();
-    const result = await window.electronAPI.ipcRenderer.invoke('dialog:saveFile', {
-      content,
-      path: filePath,
-    }) as string | null;
-    if (result) {
-      setFilePath(result);
-      setMarkdownContent(content);
-      setIsDirty(false);
-      return true;
+    try {
+      const content = getContentToSave();
+      const result = await window.electronAPI.ipcRenderer.invoke('dialog:saveFile', {
+        content,
+        path: filePath,
+      }) as string | null;
+      if (result) {
+        setFilePath(result);
+        setMarkdownContent(content);
+        setIsDirty(false);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      // Sem isso, uma falha na serialização markdown (getContentToSave) ou no IPC de
+      // escrita (ex: disco cheio, permissão negada em dialog:saveFile) vira uma promise
+      // rejeitada não tratada: nada é salvo, nada indica isso ao usuário, e quem chamou
+      // handleSave (ex: checkUnsaved antes de Novo/Abrir/fechar) segue como se tivesse
+      // dado certo. Tratamos como "não salvou" — mesmo efeito de cancelar o diálogo.
+      console.error('Falha ao salvar o arquivo:', error);
+      return false;
     }
-    return false;
   }, [filePath, getContentToSave]);
 
   const handleSaveAs = useCallback(async (): Promise<boolean> => {
     if (!window.electronAPI) return false;
-    const content = getContentToSave();
-    const result = await window.electronAPI.ipcRenderer.invoke('dialog:saveFile', {
-      content,
-      path: null,
-      forceDialog: true,
-    }) as string | null;
-    if (result) {
-      setFilePath(result);
-      setMarkdownContent(content);
-      setIsDirty(false);
-      return true;
+    try {
+      const content = getContentToSave();
+      const result = await window.electronAPI.ipcRenderer.invoke('dialog:saveFile', {
+        content,
+        path: null,
+        forceDialog: true,
+      }) as string | null;
+      if (result) {
+        setFilePath(result);
+        setMarkdownContent(content);
+        setIsDirty(false);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Falha ao salvar o arquivo (Salvar como):', error);
+      return false;
     }
-    return false;
   }, [getContentToSave]);
 
   const checkUnsaved = useCallback(async (): Promise<boolean> => {
@@ -861,40 +876,69 @@ function App() {
   // Garante que o documento Tiptap reflete o conteúdo atual antes de gerar o HTML de
   // exportação/impressão — necessário porque no modo Source o editor pode estar
   // desatualizado em relação ao textarea. Compartilhado entre export PDF/HTML/DOCX/Print.
-  const syncEditorFromMarkdownIfNeeded = useCallback(() => {
-    if (!editor || !isMarkdownMode) return;
+  // Chama o mesmo parseMarkdownWithDivBlocks + setContent do openFileContent, então está
+  // sujeito ao mesmo tipo de exceção (ex: HTML reconhecida malformada, ver
+  // preprocessBareScriptTags) — sem o try/catch, markdown problemático digitado/colado no
+  // modo Source travaria a exportação com uma promise rejeitada não tratada, sem avisar o
+  // usuário. Retorna false nesse caso para os handlers abaixo abortarem a exportação em vez
+  // de gerar HTML a partir do documento antigo (desatualizado) do editor.
+  const syncEditorFromMarkdownIfNeeded = useCallback((): boolean => {
+    if (!editor || !isMarkdownMode) return true;
     suppressDirty.current = true;
-    const processed = preprocessFootnotes(markdownContent, footnoteDefsRef.current);
-    editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
-    releaseSuppressDirty();
+    try {
+      const processed = preprocessFootnotes(markdownContent, footnoteDefsRef.current);
+      editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
+      return true;
+    } catch (error) {
+      console.error('Falha ao sincronizar o editor a partir do modo Source; exportação/impressão abortada:', error);
+      return false;
+    } finally {
+      releaseSuppressDirty();
+    }
   }, [editor, isMarkdownMode, markdownContent, releaseSuppressDirty]);
 
   const handleExportPdf = useCallback(async () => {
     if (!window.electronAPI || !editor) return;
-    syncEditorFromMarkdownIfNeeded();
+    if (!syncEditorFromMarkdownIfNeeded()) return;
     const htmlContent = generatePrintHtml();
-    await window.electronAPI.ipcRenderer.invoke('dialog:exportPdf', { htmlContent });
+    try {
+      await window.electronAPI.ipcRenderer.invoke('dialog:exportPdf', { htmlContent });
+    } catch (error) {
+      console.error('Falha ao exportar PDF:', error);
+    }
   }, [editor, syncEditorFromMarkdownIfNeeded, generatePrintHtml]);
 
   const handleExportHtml = useCallback(async () => {
     if (!window.electronAPI || !editor) return;
-    syncEditorFromMarkdownIfNeeded();
+    if (!syncEditorFromMarkdownIfNeeded()) return;
     const htmlContent = generatePrintHtml();
-    await window.electronAPI.ipcRenderer.invoke('dialog:exportHtml', { htmlContent });
+    try {
+      await window.electronAPI.ipcRenderer.invoke('dialog:exportHtml', { htmlContent });
+    } catch (error) {
+      console.error('Falha ao exportar HTML:', error);
+    }
   }, [editor, syncEditorFromMarkdownIfNeeded, generatePrintHtml]);
 
   const handleExportDocx = useCallback(async () => {
     if (!window.electronAPI || !editor) return;
-    syncEditorFromMarkdownIfNeeded();
+    if (!syncEditorFromMarkdownIfNeeded()) return;
     const htmlContent = generatePrintHtml();
-    await window.electronAPI.ipcRenderer.invoke('dialog:exportDocx', { htmlContent });
+    try {
+      await window.electronAPI.ipcRenderer.invoke('dialog:exportDocx', { htmlContent });
+    } catch (error) {
+      console.error('Falha ao exportar DOCX:', error);
+    }
   }, [editor, syncEditorFromMarkdownIfNeeded, generatePrintHtml]);
 
   const handlePrint = useCallback(async () => {
     if (!window.electronAPI || !editor) return;
-    syncEditorFromMarkdownIfNeeded();
+    if (!syncEditorFromMarkdownIfNeeded()) return;
     const htmlContent = generatePrintHtml();
-    await window.electronAPI.ipcRenderer.invoke('dialog:print', { htmlContent });
+    try {
+      await window.electronAPI.ipcRenderer.invoke('dialog:print', { htmlContent });
+    } catch (error) {
+      console.error('Falha ao imprimir:', error);
+    }
   }, [editor, syncEditorFromMarkdownIfNeeded, generatePrintHtml]);
 
   const handleToggleTheme = useCallback(() => {
