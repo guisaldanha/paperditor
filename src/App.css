@@ -139,6 +139,34 @@ html::-webkit-scrollbar-corner,
   display: flex;
 }
 
+.content-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #ffeef0;
+  color: #86181d;
+  border-bottom: 1px solid #d0d7de;
+  font-size: 0.9em;
+}
+
+[data-theme='dark'] .content-error-banner {
+  background: rgba(224, 108, 117, 0.15);
+  color: #ffb4b4;
+  border-bottom-color: var(--border-color);
+}
+
+.content-error-banner button {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.2em;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
 .tiptap-editor {
   width: 100%;
   max-width: 1200px;

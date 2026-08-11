@@ -166,6 +166,65 @@ function showAboutDialog() {
   aboutWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 }
 
+const GITHUB_REPO = 'guisaldanha/paperditor';
+
+function isNewerVersion(latest: string, current: string): boolean {
+  const l = latest.split('.').map(Number);
+  const c = current.split('.').map(Number);
+  for (let i = 0; i < Math.max(l.length, c.length); i++) {
+    const a = l[i] ?? 0;
+    const b = c[i] ?? 0;
+    if (a > b) return true;
+    if (a < b) return false;
+  }
+  return false;
+}
+
+async function checkForUpdates() {
+  const win = getFocusedWin();
+  const currentVersion = app.getVersion();
+
+  try {
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+    if (!response.ok) throw new Error(`GitHub API respondeu ${response.status}`);
+    const data = (await response.json()) as { tag_name: string };
+    const latestVersion = data.tag_name.replace(/^v/, '');
+
+    if (!isNewerVersion(latestVersion, currentVersion)) {
+      await dialog.showMessageBox(win ?? (undefined as unknown as BrowserWindow), {
+        type: 'info',
+        title: 'No Updates',
+        message: `You're already using the latest version (${currentVersion}).`,
+      });
+      return;
+    }
+
+    const result = await dialog.showMessageBox(win ?? (undefined as unknown as BrowserWindow), {
+      type: 'info',
+      title: 'Update Available',
+      message: `A new version is available: ${latestVersion} (current: ${currentVersion}).`,
+      buttons: process.windowsStore ? ['Open Microsoft Store', 'Close'] : ['Open GitHub', 'Close'],
+      defaultId: 0,
+      cancelId: 1,
+    });
+
+    if (result.response === 0) {
+      if (process.windowsStore) {
+        shell.openExternal('ms-windows-store://downloadsandupdates');
+      } else {
+        shell.openExternal(`https://github.com/${GITHUB_REPO}/releases/latest`);
+      }
+    }
+  } catch (error) {
+    console.error('Erro ao verificar atualizações:', error);
+    await dialog.showMessageBox(win ?? (undefined as unknown as BrowserWindow), {
+      type: 'error',
+      title: 'Update Check Failed',
+      message: 'Could not check for updates. Check your internet connection and try again.',
+    });
+  }
+}
+
 function createMenu() {
   const template: MenuItemConstructorOptions[] = [
     {
@@ -242,6 +301,11 @@ function createMenu() {
     {
       label: 'Help',
       submenu: [
+        {
+          label: 'Check for Updates...',
+          click: () => checkForUpdates(),
+        },
+        { type: 'separator' },
         {
           label: 'About Paperditor',
           click: () => showAboutDialog(),

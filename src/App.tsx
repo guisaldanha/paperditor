@@ -309,8 +309,16 @@ function preprocessLinkedImages(md: string): string {
 // antes do parse, pra nunca chegar nesse caminho.
 const SCRIPT_TAG_RE = /<(sub|sup)>([\s\S]*?)<\/\1>|<(sub|sup)>|<\/(sub|sup)>/gi;
 
+// Mesmo bug, gatilho confirmado ao vivo (CDP) num relatório real: "Tags <script> do
+// reCAPTCHA v3..." — <script> solto (sem fechamento) no meio de uma frase. script/
+// style/pre/textarea são os tags "raw text" do HTML5: mesmo vazios, o parser os trata
+// como elemento reconhecido e produz o mesmo "paragraph" órfão dentro de outro
+// parágrafo. Sem uso legítimo dentro do editor (não há extensão pra nenhum deles) —
+// ao contrário de sub/sup, escapamos sempre, não só quando vazios.
+const RAWTEXT_TAG_RE = /<\/?(script|style|pre|textarea)(?:\s[^<>]*)?>/gi;
+
 function escapeBareScriptTags(segment: string): string {
-  return segment.replace(
+  const withSubSup = segment.replace(
     SCRIPT_TAG_RE,
     (match: string, pairTag?: string, inner?: string, loneOpenTag?: string, loneCloseTag?: string) => {
       if (pairTag !== undefined) {
@@ -323,6 +331,7 @@ function escapeBareScriptTags(segment: string): string {
       return loneCloseTag !== undefined ? `&lt;/${tag}&gt;` : `&lt;${tag}&gt;`;
     },
   );
+  return withSubSup.replace(RAWTEXT_TAG_RE, (match) => match.replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;')));
 }
 
 function preprocessBareScriptTags(md: string): string {
@@ -525,6 +534,7 @@ function App() {
   const [isDirty, setIsDirty] = useState(false);
   const [isCtrlHeld, setIsCtrlHeld] = useState(false);
   const [showFindBar, setShowFindBar] = useState(false);
+  const [contentError, setContentError] = useState<string | null>(null);
   const findBarRef = useRef<FindBarHandle>(null);
   const showFindBarRef = useRef(false); // ref para evitar stale closure no keydown handler
   const suppressDirty = useRef(true); // começa true para ignorar o onUpdate inicial do Tiptap
@@ -799,9 +809,11 @@ function App() {
     window.electronAPI?.ipcRenderer.invoke('file:new');
   }, [checkUnsaved, editor, resetScroll, releaseSuppressDirty]);
 
-  const openFileContent = useCallback((content: string, path: string) => {
-    if (!editor) return;
+  const openFileContent = useCallback((content: string, path: string): boolean => {
+    if (!editor) return false;
     suppressDirty.current = true;
+    setContentError(null);
+    let succeeded = true;
     const isHtml = /\.html?$/i.test(path);
     if (isHtml) {
       editor.commands.setContent(preprocessHtmlForOpen(content), { contentType: 'html' });
@@ -811,6 +823,7 @@ function App() {
       try {
         editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
       } catch (error) {
+        succeeded = false;
         // Rede de segurança: se o markdown produzir uma árvore que o schema do
         // ProseMirror rejeita (ex: HTML inline reconhecida mas malformada — ver
         // preprocessBareScriptTags acima —, ou qualquer outro caso não previsto),
@@ -820,7 +833,12 @@ function App() {
         // gatilho diferente). Preferimos cair pro modo Source, que só precisa de uma
         // string e nunca falha, a deixar o arquivo "sem abrir" silenciosamente.
         console.error('Falha ao converter markdown para o editor WYSIWYG, caindo para o modo Source:', error);
+        setContentError('Não foi possível exibir este arquivo nos modos Visual/Reading (Markdown incompatível). Mostrando o modo Código-fonte.');
         setIsMarkdownMode(true);
+        // Sem isso, se a aba ativa fosse "reading" o usuário cairia numa view que
+        // ignora isMarkdownMode e mostra o documento Tiptap antigo (setContent acima
+        // nunca chegou a aplicar) — tela em branco, sem nenhum indício do que houve.
+        setToolbarTab('general');
       }
     }
     releaseSuppressDirty();
@@ -836,6 +854,7 @@ function App() {
     }
     setIsDirty(false);
     resetScroll();
+    return succeeded;
   }, [editor, resetScroll, releaseSuppressDirty, getMarkdownFromEditor]);
 
   const handleOpen = useCallback(async () => {
@@ -858,12 +877,16 @@ function App() {
       window.electronAPI.ipcRenderer.on('file:opened', (...args: unknown[]) => {
         const data = args[0] as { content: string; path: string; mode?: 'reading' | 'editor' } | undefined;
         if (data) {
-          openFileContent(data.content, data.path);
+          const succeeded = openFileContent(data.content, data.path);
           // `mode` só vem preenchido quando o arquivo chega via associação do SO (ver
           // electron/main.ts: getLaunchIntent/open-file) — navegação por link interno
           // (Ctrl+clique num link relativo) não define mode, então mantém o modo atual
-          // em vez de forçar Reading/Editor.
-          if (data.mode) {
+          // em vez de forçar Reading/Editor. Só força Visual/Reading quando o parse deu
+          // certo — senão isso sobrescreve o fallback pro modo Source que openFileContent
+          // acabou de aplicar (setIsMarkdownMode(true) + toolbarTab 'general'), voltando o
+          // usuário pra aba Reading, que ignora isMarkdownMode e mostra o documento antigo
+          // (setContent nunca chegou a aplicar) — exatamente o "arquivo não abre" original.
+          if (data.mode && succeeded) {
             setIsMarkdownMode(false);
             setToolbarTab(data.mode === 'reading' ? 'reading' : 'general');
           }
@@ -891,6 +914,7 @@ function App() {
       return true;
     } catch (error) {
       console.error('Falha ao sincronizar o editor a partir do modo Source; exportação/impressão abortada:', error);
+      setContentError('Não foi possível exportar/imprimir: o Markdown atual é incompatível com o conversor.');
       return false;
     } finally {
       releaseSuppressDirty();
@@ -947,22 +971,34 @@ function App() {
 
   // Source → Visual: carrega o markdown no editor Tiptap e aplica a seleção equivalente.
   // Compartilhado entre handleToggleMode e a entrada no modo Reading a partir do Source
-  // (a visualização Reading usa o mesmo documento Tiptap do modo Editor).
-  const switchSourceToEditor = useCallback(() => {
-    if (!editor) return;
+  // (a visualização Reading usa o mesmo documento Tiptap do modo Editor). Retorna false
+  // se o markdown não puder ser convertido — sem isso (bug original), uma exceção aqui
+  // ficava sem try/catch: estourava sem aviso nenhum e travava o usuário no modo Source,
+  // já que o código que muda pra Visual (setIsMarkdownMode(false) etc.) nunca era alcançado.
+  const switchSourceToEditor = useCallback((): boolean => {
+    if (!editor) return false;
     const textarea = textareaRef.current;
     const selStart = textarea ? textarea.selectionStart : 0;
     const selEnd = textarea ? textarea.selectionEnd : 0;
     suppressDirty.current = true;
-    const withEmoji = preprocessEmojis(markdownContent);
-    const processed = preprocessFootnotes(withEmoji, footnoteDefsRef.current);
-    editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
-    releaseSuppressDirty();
+    try {
+      const withEmoji = preprocessEmojis(markdownContent);
+      const processed = preprocessFootnotes(withEmoji, footnoteDefsRef.current);
+      editor.commands.setContent(parseMarkdownWithDivBlocks(editor, processed));
+    } catch (error) {
+      console.error('Falha ao converter Markdown para o editor WYSIWYG:', error);
+      setContentError('Não foi possível exibir este conteúdo nos modos Visual/Reading (Markdown incompatível). Permanecendo no modo Código-fonte.');
+      return false;
+    } finally {
+      releaseSuppressDirty();
+    }
+    setContentError(null);
 
     const breakpoints = buildPositionMap(editor.state.doc, markdownContent);
     applySelectionFromTextOffsets(editor, breakpoints, selStart, selEnd);
     setIsMarkdownMode(false);
     localStorage.setItem('editorMode', 'visual');
+    return true;
   }, [editor, markdownContent, releaseSuppressDirty]);
 
   const handleToggleMode = useCallback(() => {
@@ -985,18 +1021,17 @@ function App() {
     } else {
       // Source → Visual: a posição em si não depende do DOM estar montado — só focar e
       // rolar até ela precisam esperar o remount do EditorContent, feito no efeito abaixo.
-      switchSourceToEditor();
-      pendingVisualFocusRef.current = true;
+      if (switchSourceToEditor()) pendingVisualFocusRef.current = true;
     }
   }, [isReadingMode, isMarkdownMode, getMarkdownFromEditor, editor, switchSourceToEditor]);
 
   // Muda a aba ativa da toolbar. Entrar na aba "reading" a partir do modo Source
   // primeiro converte o conteúdo para o documento Tiptap (mesmo caminho do toggle
   // Source→Visual), já que o modo Reading reaproveita o editor Tiptap em somente-leitura.
+  // Se a conversão falhar, cancela a troca de aba — sem isso, "reading" mostraria o
+  // documento Tiptap desatualizado (a conversão não chegou a aplicar) sem indicar nada.
   const handleTabChange = useCallback((tab: 'general' | 'tables' | 'reading') => {
-    if (tab === 'reading' && isMarkdownMode) {
-      switchSourceToEditor();
-    }
+    if (tab === 'reading' && isMarkdownMode && !switchSourceToEditor()) return;
     setToolbarTab(tab);
   }, [isMarkdownMode, switchSourceToEditor]);
 
@@ -1230,6 +1265,12 @@ function App() {
         showToc={showToc}
         onToggleToc={() => setShowToc((v) => !v)}
       />
+      {contentError && (
+        <div className="content-error-banner" role="alert">
+          <span>{contentError}</span>
+          <button type="button" onClick={() => setContentError(null)} aria-label="Fechar aviso">×</button>
+        </div>
+      )}
       <main className="main-content">
         {isReadingMode ? (
           <div className="reading-layout">
