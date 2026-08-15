@@ -317,6 +317,18 @@ const SCRIPT_TAG_RE = /<(sub|sup)>([\s\S]*?)<\/\1>|<(sub|sup)>|<\/(sub|sup)>/gi;
 // ao contrário de sub/sup, escapamos sempre, não só quando vazios.
 const RAWTEXT_TAG_RE = /<\/?(script|style|pre|textarea)(?:\s[^<>]*)?>/gi;
 
+// Mesma causa da nota acima, mas pra qualquer tag HTML reconhecida, não só sub/sup —
+// reproduzido ao vivo (CDP) com `<span style="...">...</span>` vazio (comum em tabelas
+// de paleta de cores geradas, ex: swatch de cor sem texto dentro do <span>). Um par
+// <tag ...></tag> sem conteúdo textual entre as tags faz o @tiptap/markdown devolver o
+// content do "doc" auto-preenchido (um nó de bloco "paragraph" vazio) em vez do content
+// inline esperado — mesmo "Invalid content for node type paragraph" de cima. `div` fica
+// de fora: tratado à parte por preprocessDivBlocks/regroupDivMarkers, que roda depois
+// desta função e precisa ver as tags <div> intactas.
+const EMPTY_HTML_PAIR_RE = /<((?!div\b)[a-zA-Z][\w-]*)\b[^>]*>[ \t\r\n]*<\/\1\s*>/gi;
+
+const escapeAngleBrackets = (s: string) => s.replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'));
+
 function escapeBareScriptTags(segment: string): string {
   const withSubSup = segment.replace(
     SCRIPT_TAG_RE,
@@ -331,7 +343,8 @@ function escapeBareScriptTags(segment: string): string {
       return loneCloseTag !== undefined ? `&lt;/${tag}&gt;` : `&lt;${tag}&gt;`;
     },
   );
-  return withSubSup.replace(RAWTEXT_TAG_RE, (match) => match.replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;')));
+  const withRawText = withSubSup.replace(RAWTEXT_TAG_RE, escapeAngleBrackets);
+  return withRawText.replace(EMPTY_HTML_PAIR_RE, escapeAngleBrackets);
 }
 
 function preprocessBareScriptTags(md: string): string {
