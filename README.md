@@ -16,6 +16,8 @@ Write beautifully. Stay focused. Own your files.
 
   [<img src="https://raw.githubusercontent.com/guisaldanha/paperditor/refs/heads/main/public/download.png" alt="Download for Windows" height="150" />](https://github.com/guisaldanha/paperditor/releases/latest)
 
+  [![Get it from Microsoft Store](https://img.shields.io/badge/Microsoft%20Store-Get%20it-0078D4?logo=microsoft&logoColor=white&style=for-the-badge)](https://apps.microsoft.com/detail/9NJMJ7SLZZ9M?hl=neutral&ocid=pdpshare)
+
     
   
 
@@ -126,11 +128,13 @@ Built for developers, writers, and anyone who loves Markdown.
 
 ### Download (recommended)
 
-Download the latest Windows installer from the [Releases page](https://github.com/guisaldanha/paperditor/releases/latest) and run the `.exe` setup file.
+Download the latest Windows installer from the [Releases page](https://github.com/guisaldanha/paperditor/releases/latest) and run the `.exe` setup file, or get it from the **Microsoft Store** for automatic updates and no SmartScreen warning.
 
 <div align="center">
 
 [<img src="https://raw.githubusercontent.com/guisaldanha/paperditor/refs/heads/main/public/download.png" alt="Download for Windows" height="150" />](https://github.com/guisaldanha/paperditor/releases/latest)
+
+[![Get it from Microsoft Store](https://img.shields.io/badge/Microsoft%20Store-Get%20it-0078D4?logo=microsoft&logoColor=white&style=for-the-badge)](https://apps.microsoft.com/detail/9NJMJ7SLZZ9M?hl=neutral&ocid=pdpshare)
 
 </div>
 
