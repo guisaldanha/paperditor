@@ -24,6 +24,16 @@ Write beautifully. Stay focused. Own your files.
 
 ---
 
+## 🎬 Demo
+
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/guisaldanha/paperditor/refs/heads/main/public/demo.gif" alt="Paperditor demo: live markdown formatting, light/dark theme, source and reading modes" width="800" />
+
+</div>
+
+---
+
 ## ✨ What is Paperditor?
 
 **Paperditor** is a free, open-source desktop Markdown editor that renders your text as you type — no preview pane needed. It feels as natural as a word processor while keeping your content in clean, portable `.md` files that you own forever.
