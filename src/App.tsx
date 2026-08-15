@@ -21,6 +21,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import CodeBlockWithCopy from './extensions/CodeBlockWithCopy';
 import DivBlock from './extensions/DivBlock';
+import ColorSwatch from './extensions/ColorSwatch';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import UniqueID from '@tiptap/extension-unique-id';
 import Toolbar from './components/Toolbar';
@@ -325,9 +326,16 @@ const RAWTEXT_TAG_RE = /<\/?(script|style|pre|textarea)(?:\s[^<>]*)?>/gi;
 // inline esperado — mesmo "Invalid content for node type paragraph" de cima. `div` fica
 // de fora: tratado à parte por preprocessDivBlocks/regroupDivMarkers, que roda depois
 // desta função e precisa ver as tags <div> intactas.
-const EMPTY_HTML_PAIR_RE = /<((?!div\b)[a-zA-Z][\w-]*)\b[^>]*>[ \t\r\n]*<\/\1\s*>/gi;
+const EMPTY_HTML_PAIR_RE = /<((?!div\b)[a-zA-Z][\w-]*)\b([^>]*)>[ \t\r\n]*<\/\1\s*>/gi;
 
 const escapeAngleBrackets = (s: string) => s.replace(/[<>]/g, (c) => (c === '<' ? '&lt;' : '&gt;'));
+
+// <span style="...background:...">...</span> vazio tem nó dedicado (ver
+// extensions/ColorSwatch.ts, que renderiza um swatch de cor de verdade) — não escapa
+// esse caso pra deixar o parser reconhecer via ColorSwatch.parseHTML.
+function isColorSwatchSpan(tag: string, attrs: string): boolean {
+  return tag.toLowerCase() === 'span' && /background/i.test(attrs);
+}
 
 function escapeBareScriptTags(segment: string): string {
   const withSubSup = segment.replace(
@@ -344,7 +352,9 @@ function escapeBareScriptTags(segment: string): string {
     },
   );
   const withRawText = withSubSup.replace(RAWTEXT_TAG_RE, escapeAngleBrackets);
-  return withRawText.replace(EMPTY_HTML_PAIR_RE, escapeAngleBrackets);
+  return withRawText.replace(EMPTY_HTML_PAIR_RE, (match: string, tag: string, attrs: string) =>
+    isColorSwatchSpan(tag, attrs) ? match : escapeAngleBrackets(match),
+  );
 }
 
 function preprocessBareScriptTags(md: string): string {
@@ -619,6 +629,7 @@ function App() {
       }),
       CodeBlockWithCopy,
       DivBlock,
+      ColorSwatch,
       HorizontalRule,
       Placeholder.configure({
         placeholder: 'Start typing your markdown here...',
