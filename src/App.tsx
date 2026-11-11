@@ -337,6 +337,27 @@ function isColorSwatchSpan(tag: string, attrs: string): boolean {
   return tag.toLowerCase() === 'span' && /background/i.test(attrs);
 }
 
+// Mesma classe de bug, gatilho de texto que CITA tags ("use <p>, <h2>, <ul>..." num
+// prompt): tag citada sem par de fechamento vira nó órfão e o schema rejeita o
+// setContent. Heurística: se a quantidade de aberturas e fechamentos de um nome de tag
+// difere no segmento, escapa todas as ocorrências desse nome. Void, div e <a>/<img>
+// (tratados em outro lugar) ficam de fora.
+const VOID_TAGS = new Set(['br', 'hr', 'img', 'input', 'meta', 'link', 'wbr', 'area', 'base', 'col', 'embed', 'source', 'track', 'param', 'div']);
+const ANY_TAG_RE = /<(\/?)([a-zA-Z][\w-]*)\b(?:[^<>]*?)(\/?)>/g;
+
+function escapeUnbalancedTags(segment: string): string {
+  const balance = new Map<string, number>();
+  for (const m of segment.matchAll(ANY_TAG_RE)) {
+    const name = m[2].toLowerCase();
+    if (VOID_TAGS.has(name) || m[3] === '/') continue;
+    balance.set(name, (balance.get(name) ?? 0) + (m[1] ? -1 : 1));
+  }
+  return segment.replace(ANY_TAG_RE, (match: string, _c: string, name: string, selfClose: string) => {
+    const lower = name.toLowerCase();
+    return !VOID_TAGS.has(lower) && selfClose !== '/' && balance.get(lower) ? escapeAngleBrackets(match) : match;
+  });
+}
+
 function escapeBareScriptTags(segment: string): string {
   const withSubSup = segment.replace(
     SCRIPT_TAG_RE,
@@ -352,7 +373,8 @@ function escapeBareScriptTags(segment: string): string {
     },
   );
   const withRawText = withSubSup.replace(RAWTEXT_TAG_RE, escapeAngleBrackets);
-  return withRawText.replace(EMPTY_HTML_PAIR_RE, (match: string, tag: string, attrs: string) =>
+  const withUnbalanced = escapeUnbalancedTags(withRawText);
+  return withUnbalanced.replace(EMPTY_HTML_PAIR_RE, (match: string, tag: string, attrs: string) =>
     isColorSwatchSpan(tag, attrs) ? match : escapeAngleBrackets(match),
   );
 }
